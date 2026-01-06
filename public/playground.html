@@ -1,0 +1,625 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EasyForm Playground</title>
+
+  <style>
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+
+  <link rel="stylesheet" href="/vendor/antd/reset.css" />
+  <link rel="stylesheet" href="/easy-form/easy-form.css" />
+
+  <script type="importmap">
+      {
+        "imports": {
+          "react": "/vendor/react/index.js",
+          "react-dom": "/vendor/react-dom/index.js",
+          "react-dom/client": "/vendor/react-dom/client.js",
+          "react/jsx-runtime": "/vendor/react/jsx-runtime.js",
+          "react/jsx-dev-runtime": "/vendor/react/jsx-dev-runtime.js",
+          "easy-form": "/easy-form/index.js",
+          "@components/": "/easy-form/components/",
+          "@services/": "/easy-form/services/",
+          "@utils/": "/easy-form/utils/",
+          "@config/": "/easy-form/config/",
+          "antd": "/vendor/antd/index.js",
+          "@ant-design/icons": "/vendor/ant-design-icons/index.js",
+          "@ant-design/cssinjs": "/vendor/ant-design-cssinjs/index.js",
+          "lodash": "/vendor/lodash/index.js",
+          "eventemitter3": "/vendor/eventemitter3/index.js",
+          "dayjs": "/vendor/dayjs/index.js",
+          "dayjs/plugin/utc": "/vendor/dayjs/plugin/utc.js",
+          "dayjs/plugin/timezone": "/vendor/dayjs/plugin/timezone.js",
+          "dayjs/plugin/isSameOrBefore": "/vendor/dayjs/plugin/isSameOrBefore.js",
+          "dayjs/plugin/isSameOrAfter": "/vendor/dayjs/plugin/isSameOrAfter.js",
+          "dayjs/plugin/customParseFormat": "/vendor/dayjs/plugin/customParseFormat.js",
+          "uuid": "/vendor/uuid/index.js",
+          "uuid/": "/vendor/uuid/",
+          "blueimp-md5": "/vendor/blueimp-md5/index.js",
+          "validator": "/vendor/validator/index.js",
+          "validator/lib/isEmail": "/vendor/validator/lib/isEmail.js",
+          "validator/lib/isIP": "/vendor/validator/lib/isIP.js",
+          "validator/lib/isIPRange": "/vendor/validator/lib/isIPRange.js",
+          "validator/lib/isURL": "/vendor/validator/lib/isURL.js",
+          "validator/lib/isPort": "/vendor/validator/lib/isPort.js",
+          "validator/lib/isIdentityCard": "/vendor/validator/lib/isIdentityCard.js",
+          "classnames": "/vendor/classnames/index.js",
+          "prop-types": "/vendor/prop-types/index.js",
+          "react-sortable-hoc": "/vendor/react-sortable-hoc/index.js",
+          "array-move": "/vendor/array-move/index.js",
+          "axios": "/vendor/axios/index.js",
+          "zustand": "/vendor/zustand/index.js",
+          "zustand/middleware": "/vendor/zustand/middleware.js",
+          "zustand/vanilla": "/vendor/zustand/vanilla.js",
+          "zustand/": "/vendor/zustand/",
+          "use-sync-external-store/": "/vendor/use-sync-external-store/",
+          "@swc/wasm-web": "/vendor/swc/wasm-web/wasm.js",
+          "@components/easyForm/easyFormRule": "/easy-form/components/easyForm/easyFormRule/index.js",
+          "@components/easyForm/easyFormRule.js": "/easy-form/components/easyForm/easyFormRule/index.js",
+          "@components/easyForm/easyForm.service": "/easy-form/components/easyForm/easyForm.service.js",
+          "@components/easyDialog/dialogWrapper": "/easy-form/components/easyDialog/dialogWrapper.js",
+          "@components/easyTable": "/easy-form/components/easyTable/index.js",
+          "@components/easyTable/easyTableLayout": "/easy-form/components/easyTable/easyTableLayout.js",
+          "@components/easyContainer": "/easy-form/components/easyContainer/index.js",
+          "@components/easyDialog": "/easy-form/components/easyDialog/index.js",
+          "@components/easySearch": "/easy-form/components/easySearch/index.js",
+          "@utils/formRule.util": "/easy-form/utils/formRule.util.js"
+        }
+      }
+    </script>
+
+  <style>
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: #ffffff;
+    }
+
+    #preview {
+      width: 100%;
+      height: 100%;
+      background: #ffffff;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="preview"></div>
+
+  <script type="module">
+    import initSwc, { transformSync } from "@swc/wasm-web";
+
+    const previewEl = document.getElementById("preview");
+
+    let swcReady = false;
+    let umdReady = false;
+    let React = null;
+    let createRoot = null;
+    let root = null;
+    let latestRunId = 0;
+
+    if (!window.process) {
+      window.process = { env: { NODE_ENV: "production" } };
+    }
+
+    // Initialize EasyForm environment config
+    window.APP_WORKSPACE_PROJECT_CONFIG = {
+      disablePx2Rem: true
+    };
+
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        const existing = document.querySelector(`script[data-src="${src}"]`);
+        if (existing) {
+          if (existing.dataset.loaded === "true") {
+            resolve();
+            return;
+          }
+          existing.addEventListener("load", resolve, { once: true });
+          existing.addEventListener("error", reject, { once: true });
+          return;
+        }
+
+        const script = document.createElement("script");
+        script.src = src;
+        script.async = true;
+        script.dataset.src = src;
+        script.onload = () => {
+          script.dataset.loaded = "true";
+          resolve();
+        };
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+    }
+
+    async function ensureRuntime() {
+      if (!React || !createRoot) {
+        await loadScript("/vendor/react/react.production.min.js");
+        await loadScript("/vendor/react-dom/react-dom.production.min.js");
+        React = window.React;
+        createRoot = window.ReactDOM && window.ReactDOM.createRoot;
+        if (!React || !createRoot) {
+          throw new Error("React UMD not available");
+        }
+      }
+
+      if (!swcReady) {
+        await initSwc();
+        swcReady = true;
+      }
+
+      if (!umdReady) {
+        await loadScript("/vendor/lodash/lodash.min.js");
+        await loadScript("/vendor/eventemitter3/eventemitter3.min.js");
+        await loadScript("/vendor/dayjs/dayjs.min.js");
+        await loadScript("/vendor/dayjs/plugin/utc.umd.js");
+        await loadScript("/vendor/dayjs/plugin/timezone.umd.js");
+        await loadScript("/vendor/dayjs/plugin/isSameOrBefore.umd.js");
+        await loadScript("/vendor/dayjs/plugin/isSameOrAfter.umd.js");
+        await loadScript("/vendor/dayjs/plugin/customParseFormat.umd.js");
+        await loadScript("/vendor/axios/axios.min.js");
+        await loadScript("/vendor/blueimp-md5/md5.min.js");
+        await loadScript("/vendor/validator/validator.min.js");
+        await loadScript("/vendor/classnames/classnames.js");
+        await loadScript("/vendor/prop-types/prop-types.min.js");
+        await loadScript("/vendor/react-sortable-hoc/react-sortable-hoc.umd.min.js");
+        await loadScript("/vendor/ant-design-cssinjs/cssinjs.min.js");
+        await loadScript("/vendor/antd/antd.min.js");
+        await loadScript("/vendor/ant-design-icons/icons.min.js");
+        if (!window.antd) {
+          throw new Error("antd UMD not available");
+        }
+        if (!window.icons) {
+          throw new Error("ant-design icons UMD not available");
+        }
+        if (!window.antdCssinjs) {
+          throw new Error("@ant-design/cssinjs UMD not available");
+        }
+        if (!window.PropTypes) {
+          throw new Error("prop-types UMD not available");
+        }
+        if (!window.SortableHOC) {
+          throw new Error("react-sortable-hoc UMD not available");
+        }
+        umdReady = true;
+      }
+    }
+
+    async function runSource(input) {
+      const runId = ++latestRunId;
+      await ensureRuntime();
+
+      // 1. Prepare File Map
+      let files = {};
+      let entryFile = '';
+
+      if (typeof input === 'string') {
+        const fileDelimiterRegex = /(?:^|\n)=== FILE: (.+?) ===\n/;
+        if (fileDelimiterRegex.test(input)) {
+          // Parse multi-file string
+          const parts = input.split(fileDelimiterRegex);
+          // parts[0] might be content before first file, often empty or description
+          // Then pairs of [filename, content, filename, content...]
+
+          // If the first part is essentially empty (whitespace), skip it.
+          // If the string starts with the delimiter, parts[0] is empty.
+
+          let startIndex = 1;
+          if (!input.match(/^=== FILE:/)) {
+            // If it doesn't start exactly with it, maybe there's preamble.
+            // but split keeps the preamble in index 0.
+            // If input starts with "=== FILE: ...", split returns ["", "filename", "content"...]
+          }
+
+          for (let i = 1; i < parts.length; i += 2) {
+            const fname = parts[i].trim();
+            let fcontent = parts[i + 1];
+            if (!fcontent) fcontent = "";
+            files[fname] = fcontent;
+          }
+
+          // Determine entry file
+          entryFile = Object.keys(files).find(k => /index\.|App\.|main\./i.test(k)) || Object.keys(files)[0];
+        } else {
+          // Single file treated as main.tsx
+          entryFile = 'main.tsx';
+          files['main.tsx'] = input;
+        }
+      } else if (typeof input === 'object') {
+        files = { ...input };
+        // Find entry: look for index.tsx, App.tsx, or use the first one
+        entryFile = Object.keys(files).find(k => /index\.|App\.|main\./i.test(k)) || Object.keys(files)[0];
+      }
+
+      // 1.5 Clean up markdown markers
+      Object.keys(files).forEach(filename => {
+        let code = files[filename];
+        // Remove markdown code block markers
+        // Remove opening ```tsx, ```typescript, or just ```
+        code = code.replace(/^\s*```[a-zA-Z]*\r?\n/g, '');
+
+        // Remove closing ``` (and potential ### afterwards) from the end
+        // We match from the end of string, optionally matching ### and whitespace
+        code = code.replace(/\r?\n\s*```\s*(?:###\s*)?$/g, '');
+
+        // Also indiscriminately remove `###` if it appears on its own line anywhere 
+        // (case: multiple files concatenated with sloppy delimiters)
+        code = code.replace(/^\s*###\s*$/gm, '');
+
+        files[filename] = code;
+      });
+
+      const tC0 = performance.now();
+
+      // 2. Build Dependency Graph
+      const graph = new Map();
+
+      Object.keys(files).forEach(filename => {
+        if (!graph.has(filename)) graph.set(filename, new Set());
+
+        const code = files[filename];
+        // Regex for relative imports (./, ../) AND alias imports (@/)
+        const importRegex = /(?:import|from)\s+['"]((?:\.|@)[^'"]+)['"]/g;
+        const dynamicImportRegex = /import\(['"]((?:\.|@)[^'"]+)['"]\)/g;
+
+        const addDep = (importPath) => {
+          let candidates = [];
+
+          // 1. Clean the path
+          // ./foo/bar -> foo/bar
+          // @/components/bar -> components/bar
+          let cleanPath = importPath;
+          if (cleanPath.startsWith('./')) cleanPath = cleanPath.substring(2);
+          else if (cleanPath.startsWith('../')) cleanPath = cleanPath.substring(3); // super hacky flat fallback
+          else if (cleanPath.startsWith('@/')) cleanPath = cleanPath.substring(2);
+
+          // 2. Generate candidates
+          // exact match
+          candidates.push(cleanPath);
+          candidates.push(cleanPath + '.tsx');
+          candidates.push(cleanPath + '.ts');
+          candidates.push(cleanPath + '.jsx');
+          candidates.push(cleanPath + '.js');
+
+          // 3. Fallback: check basename only (if generated files are flat but imports use folders)
+          // components/EasyTable -> EasyTable
+          const baseName = cleanPath.split('/').pop();
+          if (baseName && baseName !== cleanPath) {
+            candidates.push(baseName);
+            candidates.push(baseName + '.tsx');
+            candidates.push(baseName + '.ts');
+            candidates.push(baseName + '.jsx');
+            candidates.push(baseName + '.js');
+          }
+
+          const match = candidates.find(c => files[c]);
+          if (match) {
+            graph.get(filename).add(match);
+          }
+        };
+
+        let m;
+        while ((m = importRegex.exec(code)) !== null) addDep(m[1]);
+        while ((m = dynamicImportRegex.exec(code)) !== null) addDep(m[1]);
+      });
+
+      // 3. Topological Sort
+      const sorted = [];
+      const visited = new Set();
+      const visiting = new Set();
+
+      const visit = (node) => {
+        if (visiting.has(node)) return;
+        if (visited.has(node)) return;
+
+        visiting.add(node);
+        const deps = graph.get(node) || new Set();
+        deps.forEach(dep => visit(dep));
+        visiting.delete(node);
+        visited.add(node);
+        sorted.push(node);
+      };
+
+      Object.keys(files).forEach(node => visit(node));
+
+      // 4. Compile and Link in Order
+      const urlMap = new Map();
+
+      // We moved getReplacementMap inside the loop to ensure we use valid URLs
+      // But actually we need to map the IMPORT PATHS found in code to the BLOB URLs
+      // The logic below constructs the map dynamically based on what we resolved for this file?
+      // No, we need a global map of "potential import paths" -> "blob url"
+
+      // Let's invert the logic: for every file we compiled (and have a Blob URL for),
+      // we generate all possible ways it could be imported (candidates) and map those to the URL.
+      // e.g. "EasyTable.tsx" -> blob:123
+      // We map: "EasyTable", "./EasyTable", "@/components/EasyTable", "components/EasyTable", etc.
+
+      console.log("[Playground] Version: v3 (debug) - initializing runSource");
+
+      const compileFile = (filename) => {
+        let code = files[filename];
+
+        console.log(`[Playground] Compiling ${filename}`);
+
+        const replaceImports = (sourceCode) => {
+          // Broad regex to capture ALL imports
+          return sourceCode.replace(/(from|import)(\s+['"])([^'"]+)(['"])/g, (match, p1, p2, importPath, p4) => {
+            console.log(`[Playground] Processing import in ${filename}: ${importPath}`);
+            // 1. Try to resolve to a local compiled file (Blob URL)
+            let cleanPath = importPath;
+            if (cleanPath.startsWith('./')) cleanPath = cleanPath.substring(2);
+            else if (cleanPath.startsWith('../')) cleanPath = cleanPath.substring(3); // flat fallback
+            else if (cleanPath.startsWith('@/')) cleanPath = cleanPath.substring(2);
+
+            let candidates = [
+              cleanPath, cleanPath + '.tsx', cleanPath + '.ts', cleanPath + '.jsx', cleanPath + '.js'
+            ];
+            const baseName = cleanPath.split('/').pop();
+            if (baseName && baseName !== cleanPath) {
+              candidates.push(baseName, baseName + '.tsx', baseName + '.ts');
+            }
+
+            const targetFile = candidates.find(c => files[c]);
+            if (targetFile && urlMap.has(targetFile)) {
+              return `${p1}${p2}${urlMap.get(targetFile)}${p4}`;
+            }
+
+            // 2. Fallback: Map project aliases to importmap aliases
+            let mappedPath = importPath;
+            if (importPath.startsWith('@/')) {
+              mappedPath = importPath.replace(/^@\//, '@');
+            }
+
+            // Check if it's a framework import (either originally or after mapping)
+            if (mappedPath.startsWith('@components/')) {
+              if (mappedPath.endsWith('.service')) {
+                console.log(`[Playground] Rewrote ${importPath} -> ${mappedPath}.js`);
+                return `${p1}${p2}${mappedPath}.js${p4}`;
+              }
+              if (!mappedPath.endsWith('.js') && !mappedPath.endsWith('.tsx') && !mappedPath.endsWith('.ts')) {
+                const parts = mappedPath.split('/');
+                const lastPart = parts[parts.length - 1];
+
+                // KNOWN DIRECTORIES: Force index.js
+                const knownDirs = ['easyForm', 'easyTable', 'easyDialog', 'easySearch', 'easyContainer', 'easyFormRule', 'easyFormLayout', 'easyFormDebug', 'easyFormWidget', 'easyFormUnit', 'easyFormHook'];
+                if (knownDirs.includes(lastPart)) {
+                  console.log(`[Playground] Rewrote ${importPath} -> ${mappedPath}/index.js (known dir)`);
+                  return `${p1}${p2}${mappedPath}/index.js${p4}`;
+                }
+
+                if (lastPart.includes('.')) {
+                  return `${p1}${p2}${mappedPath}.js${p4}`;
+                }
+
+                if (/^[A-Z]/.test(lastPart)) {
+                  return `${p1}${p2}${mappedPath}/index.js${p4}`;
+                }
+
+                return `${p1}${p2}${mappedPath}.js${p4}`;
+              }
+              return `${p1}${p2}${mappedPath}${p4}`;
+            }
+
+            // Service Handling
+            if (mappedPath.startsWith('@services/')) {
+              if (mappedPath.endsWith('.service')) {
+                console.log(`[Playground] Rewrote ${importPath} -> ${mappedPath}.js`);
+                return `${p1}${p2}${mappedPath}.js${p4}`;
+              }
+              if (!mappedPath.endsWith('.js') && !mappedPath.endsWith('.tsx') && !mappedPath.endsWith('.ts')) {
+                console.log(`[Playground] Rewrote ${importPath} -> ${mappedPath}.js`);
+                return `${p1}${p2}${mappedPath}.js${p4}`;
+              }
+              return `${p1}${p2}${mappedPath}${p4}`;
+            }
+
+            if (mappedPath.startsWith('@utils/') || mappedPath.startsWith('@config/')) {
+              // Utilities usually need .js
+              if (!mappedPath.endsWith('.js')) {
+                return `${p1}${p2}${mappedPath}.js${p4}`;
+              }
+              return `${p1}${p2}${mappedPath}${p4}`;
+            }
+
+            console.log(`[Playground] Leaving import as-is: ${importPath}`);
+            return match; // Keep original
+          });
+        };
+
+        code = replaceImports(code);
+
+        // Handle dynamic imports
+        code = code.replace(/import\(['"]([^'"]+)['"]\)/g, (match, importPath) => {
+          // 1. Local Blob resolution
+          let cleanPath = importPath;
+          if (cleanPath.startsWith('./')) cleanPath = cleanPath.substring(2);
+          else if (cleanPath.startsWith('../')) cleanPath = cleanPath.substring(3);
+          else if (cleanPath.startsWith('@/')) cleanPath = cleanPath.substring(2);
+
+          let candidates = [
+            cleanPath, cleanPath + '.tsx', cleanPath + '.ts', cleanPath + '.jsx', cleanPath + '.js'
+          ];
+          const baseName = cleanPath.split('/').pop();
+          if (baseName && baseName !== cleanPath) {
+            candidates.push(baseName, baseName + '.tsx', baseName + '.ts');
+          }
+
+          const targetFile = candidates.find(c => files[c]);
+          if (targetFile && urlMap.has(targetFile)) {
+            return `import("${urlMap.get(targetFile)}")`;
+          }
+
+          // 2. Fallback Alias resolution
+          let mappedPath = importPath;
+          if (importPath.startsWith('@/')) {
+            mappedPath = importPath.replace(/^@\//, '@');
+          }
+
+          if (mappedPath.startsWith('@components/')) {
+            if (mappedPath.endsWith('.service')) {
+              return `import("${mappedPath}.js")`;
+            }
+            if (!mappedPath.endsWith('.js') && !mappedPath.endsWith('.tsx') && !mappedPath.endsWith('.ts')) {
+              const parts = mappedPath.split('/');
+              const lastPart = parts[parts.length - 1];
+
+              if (lastPart.includes('.')) {
+                return `import("${mappedPath}.js")`;
+              }
+
+              if (/^[A-Z]/.test(lastPart)) {
+                return `import("${mappedPath}/index.js")`;
+              }
+              return `import("${mappedPath}.js")`;
+            }
+            return `import("${mappedPath}")`;
+          }
+
+          if (mappedPath.startsWith('@services/')) {
+            if (mappedPath.endsWith('.service')) {
+              return `import("${mappedPath}.js")`;
+            }
+            if (!mappedPath.endsWith('.js') && !mappedPath.endsWith('.tsx') && !mappedPath.endsWith('.ts')) {
+              return `import("${mappedPath}.js")`;
+            }
+            return `import("${mappedPath}")`;
+          }
+
+          if (mappedPath.startsWith('@utils/') ||
+            mappedPath.startsWith('@config/')) {
+            if (!mappedPath.endsWith('.js')) {
+              return `import("${mappedPath}.js")`;
+            }
+            return `import("${mappedPath}")`;
+          }
+
+          return match;
+        });
+
+        const out = transformSync(code, {
+          jsc: {
+            parser: { syntax: "typescript", tsx: true },
+            transform: { react: { runtime: "automatic", development: false } }
+          },
+          module: { type: "es6" },
+          sourceMaps: false
+        });
+
+        const blob = new Blob([out.code], { type: "text/javascript;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        urlMap.set(filename, url);
+      };
+
+      for (const filename of sorted) {
+        try {
+          compileFile(filename);
+        } catch (e) {
+          console.error(`[Playground] Failed to compile ${filename}:`, e);
+          throw e;
+        }
+      }
+
+      const tC1 = performance.now();
+      if (runId !== latestRunId) return null;
+
+      // 5. Run Entry
+      if (!urlMap.has(entryFile)) throw new Error("Entry file not compiled");
+      const entryUrl = urlMap.get(entryFile);
+
+      const tI0 = performance.now();
+      const mod = await import(entryUrl);
+      const tI1 = performance.now();
+
+      if (runId !== latestRunId) return null;
+
+      const App = mod.default ?? mod.App;
+      if (!App) throw new Error("Missing default/App export");
+
+      if (root) root.unmount();
+      root = createRoot(previewEl);
+
+      const tR0 = performance.now();
+      root.render(React.createElement(App, null));
+      await new Promise(requestAnimationFrame);
+      const tR1 = performance.now();
+      if (runId !== latestRunId) return null;
+
+      return {
+        compileMs: tC1 - tC0,
+        importMs: tI1 - tI0,
+        renderMs: tR1 - tR0
+      };
+    }
+
+    function getMessagePayload(data) {
+      if (typeof data === "string") return { code: data };
+      if (!data || typeof data !== "object") return null;
+
+      // Extract and set proxy rules if provided
+      if (data.proxyRules && Array.isArray(data.proxyRules)) {
+        window.APP_PROXY_RULES = data.proxyRules;
+        console.log("[Playground] Proxy rules updated:", data.proxyRules);
+      }
+
+      // Extract and set active host if provided
+      if (data.activeHost) {
+        window.APP_ACTIVE_HOST = data.activeHost;
+        console.log("[Playground] Active host updated:", data.activeHost);
+      }
+
+      // Support both { code: string } and { files: object }
+      if (typeof data.code === "string") return { requestId: data.requestId, input: data.code };
+      if (typeof data.files === "object") return { requestId: data.requestId, input: data.files };
+
+      return null;
+    }
+
+    function postResult(event, payload) {
+      const targetOrigin = event.origin && event.origin !== "null" ? event.origin : "*";
+      if (event.source && event.source.postMessage) {
+        event.source.postMessage(payload, targetOrigin);
+      }
+    }
+
+    window.addEventListener("message", async (event) => {
+      const payload = getMessagePayload(event.data);
+      if (!payload) return;
+
+      const { requestId, input } = payload;
+
+      try {
+        const metrics = await runSource(input);
+        if (!metrics) return;
+        postResult(event, {
+          type: "easyform:render:ok",
+          requestId,
+          metrics
+        });
+      } catch (err) {
+        postResult(event, {
+          type: "easyform:render:error",
+          requestId,
+          error: {
+            message: err?.message || String(err),
+            stack: err?.stack || ""
+          }
+        });
+      }
+    });
+  </script>
+</body>
+
+</html>

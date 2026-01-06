@@ -1,0 +1,37 @@
+const axios = window.axios;
+if (!axios) {
+  throw new Error("axios UMD not loaded");
+}
+export default axios;
+export const constructor = axios.constructor;
+export const request = axios.request;
+export const _request = axios._request;
+export const getUri = axios.getUri;
+export const get = axios.get;
+export const head = axios.head;
+export const options = axios.options;
+export const post = axios.post;
+export const postForm = axios.postForm;
+export const put = axios.put;
+export const putForm = axios.putForm;
+export const patch = axios.patch;
+export const patchForm = axios.patchForm;
+export const defaults = axios.defaults;
+export const interceptors = axios.interceptors;
+export const create = axios.create;
+export const Axios = axios.Axios;
+export const CanceledError = axios.CanceledError;
+export const CancelToken = axios.CancelToken;
+export const isCancel = axios.isCancel;
+export const VERSION = axios.VERSION;
+export const toFormData = axios.toFormData;
+export const AxiosError = axios.AxiosError;
+export const Cancel = axios.Cancel;
+export const all = axios.all;
+export const spread = axios.spread;
+export const isAxiosError = axios.isAxiosError;
+export const mergeConfig = axios.mergeConfig;
+export const AxiosHeaders = axios.AxiosHeaders;
+export const formToJSON = axios.formToJSON;
+export const getAdapter = axios.getAdapter;
+export const HttpStatusCode = axios.HttpStatusCode;

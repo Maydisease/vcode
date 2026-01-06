@@ -1,0 +1,65 @@
+.status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-xs) var(--spacing-lg);
+    background-color: var(--color-card);
+    border-top: 1px solid var(--color-border);
+    height: 28px;
+    flex-shrink: 0;
+    font-size: 12px;
+    color: var(--color-text-secondary);
+}
+
+.status-bar__left {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.status-bar__right {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.status-bar__item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.status-bar__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--color-success);
+}
+
+.status-bar__dot--error {
+    background-color: var(--color-error);
+}
+
+.status-bar__dot--warning {
+    background-color: var(--color-warning);
+}
+
+.status-bar__progress {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.status-bar__progress-bar {
+    width: 100px;
+    height: 4px;
+    background-color: var(--color-border-light);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.status-bar__progress-fill {
+    height: 100%;
+    background-color: var(--color-primary);
+    transition: width var(--transition-normal);
+}

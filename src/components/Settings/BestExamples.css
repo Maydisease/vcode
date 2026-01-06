@@ -1,0 +1,296 @@
+.best-examples {
+    padding: 20px;
+    height: 100%;
+    overflow-y: auto;
+    box-sizing: border-box;
+}
+
+.best-examples__header h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--color-text);
+    margin: 0 0 8px 0;
+}
+
+.best-examples__description {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    margin: 0 0 16px 0;
+}
+
+.best-examples__toggle {
+    margin-bottom: 20px;
+}
+
+.best-examples__toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+}
+
+.best-examples__toggle-label input[type="checkbox"] {
+    width: 40px;
+    height: 22px;
+    appearance: none;
+    -webkit-appearance: none;
+    background: var(--color-border);
+    border-radius: 11px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.best-examples__toggle-label input[type="checkbox"]::before {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: white;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.best-examples__toggle-label input[type="checkbox"]:checked {
+    background: var(--color-primary);
+}
+
+.best-examples__toggle-label input[type="checkbox"]:checked::before {
+    transform: translateX(18px);
+}
+
+.best-examples__toggle-text {
+    font-size: 13px;
+    color: var(--color-text);
+}
+
+.best-examples__add-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: var(--color-primary);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.best-examples__add-btn:hover {
+    background: var(--color-primary-hover);
+}
+
+.best-examples__editor {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.best-examples__form-group {
+    margin-bottom: 16px;
+}
+
+.best-examples__form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text);
+    margin-bottom: 6px;
+}
+
+.best-examples__form-group input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    font-size: 13px;
+    background: var(--color-bg);
+    color: var(--color-text);
+    box-sizing: border-box;
+}
+
+.best-examples__form-group input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+.best-examples__code-section {
+    margin-bottom: 16px;
+}
+
+.best-examples__code-section label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text);
+    margin-bottom: 6px;
+}
+
+.best-examples__code-section textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: 'Monaco', 'Menlo', monospace;
+    background: var(--color-bg);
+    color: var(--color-text);
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+.best-examples__code-section textarea:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+.best-examples__actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.best-examples__save-btn,
+.best-examples__cancel-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.best-examples__save-btn {
+    background: var(--color-primary);
+    color: white;
+    border: none;
+}
+
+.best-examples__save-btn:hover {
+    background: var(--color-primary-hover);
+}
+
+.best-examples__cancel-btn {
+    background: transparent;
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border);
+}
+
+.best-examples__cancel-btn:hover {
+    background: var(--color-surface-hover);
+}
+
+.best-examples__list {
+    margin-top: 20px;
+}
+
+.best-examples__empty {
+    text-align: center;
+    padding: 40px;
+    color: var(--color-text-secondary);
+    font-size: 13px;
+}
+
+.best-examples__item {
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+
+.best-examples__item-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--color-surface);
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.best-examples__item-header:hover {
+    background: var(--color-surface-hover);
+}
+
+.best-examples__item-toggle {
+    color: var(--color-text-secondary);
+    margin-right: 8px;
+    display: flex;
+}
+
+.best-examples__item-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text);
+}
+
+.best-examples__item-desc {
+    margin-left: 12px;
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    flex: 1;
+}
+
+.best-examples__item-actions {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+}
+
+.best-examples__item-actions button {
+    padding: 6px;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.best-examples__item-actions button:hover {
+    background: var(--color-border);
+    color: var(--color-text);
+}
+
+.best-examples__item-preview {
+    padding: 16px;
+    background: var(--color-bg);
+    border-top: 1px solid var(--color-border);
+}
+
+.best-examples__preview-section {
+    margin-bottom: 16px;
+}
+
+.best-examples__preview-section:last-child {
+    margin-bottom: 0;
+}
+
+.best-examples__preview-section h4 {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    margin: 0 0 8px 0;
+}
+
+.best-examples__preview-section pre {
+    margin: 0;
+    padding: 12px;
+    background: var(--color-surface);
+    border-radius: 6px;
+    font-size: 11px;
+    font-family: 'Monaco', 'Menlo', monospace;
+    color: var(--color-text);
+    overflow-x: auto;
+    max-height: 200px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}

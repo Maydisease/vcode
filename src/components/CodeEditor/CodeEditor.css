@@ -1,0 +1,100 @@
+.code-editor {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.code-editor--multi-file {
+    flex-direction: row;
+}
+
+.code-editor__sidebar {
+    flex-shrink: 0;
+}
+
+.code-editor__main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.code-editor__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--spacing-md);
+    border-bottom: 1px solid var(--color-border);
+    flex-shrink: 0;
+    background-color: var(--color-card);
+    height: 48px;
+    box-sizing: border-box;
+}
+
+.code-editor__title {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--color-text-primary);
+}
+
+.code-editor__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.code-editor__action-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+}
+
+.code-editor__action-btn:hover:not(:disabled) {
+    background-color: var(--color-bg);
+    color: var(--color-text-primary);
+}
+
+.code-editor__action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.code-editor__action-btn--copied {
+    color: var(--color-success);
+}
+
+.code-editor__content {
+    flex: 1;
+    overflow: hidden;
+    background-color: var(--color-card);
+}
+
+.code-editor__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--color-text-muted);
+    gap: var(--spacing-md);
+}
+
+.code-editor__empty-icon {
+    padding: var(--spacing-lg);
+    background-color: var(--color-bg);
+    border-radius: var(--radius-lg);
+}
+
+.code-editor__empty-text {
+    text-align: center;
+    line-height: 1.6;
+}

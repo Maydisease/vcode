@@ -1,0 +1,180 @@
+.easyform-prompts {
+    display: flex;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Sidebar */
+.easyform-prompts__sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    background-color: var(--color-card);
+}
+
+.easyform-prompts__sidebar-header {
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--color-border);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.easyform-prompts__sidebar-list {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.easyform-prompts__sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    border-left: 3px solid transparent;
+}
+
+.easyform-prompts__sidebar-item:hover {
+    background-color: var(--color-bg);
+    color: var(--color-text-primary);
+}
+
+.easyform-prompts__sidebar-item--active {
+    background-color: rgba(59, 130, 246, 0.08);
+    color: var(--color-primary);
+    border-left-color: var(--color-primary);
+}
+
+.easyform-prompts__sidebar-item-icon {
+    flex-shrink: 0;
+}
+
+.easyform-prompts__sidebar-item-icon--json {
+    color: #f5a623;
+}
+
+.easyform-prompts__sidebar-item-icon--tsx {
+    color: #3178c6;
+}
+
+.easyform-prompts__sidebar-item-icon--ts {
+    color: #3178c6;
+}
+
+.easyform-prompts__sidebar-item-icon--refine {
+    color: #10b981;
+}
+
+.easyform-prompts__sidebar-item-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.easyform-prompts__sidebar-item-tokens {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 10px;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.1);
+    padding: 2px 6px;
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+
+.easyform-prompts__sidebar-item-tokens svg {
+    opacity: 0.8;
+}
+
+/* Editor Panel */
+.easyform-prompts__editor {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.easyform-prompts__editor-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-bottom: 1px solid var(--color-border);
+    background-color: var(--color-card);
+}
+
+.easyform-prompts__editor-title {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+}
+
+.easyform-prompts__editor-tag {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background-color: rgba(59, 130, 246, 0.15);
+    color: #3b82f6;
+}
+
+.easyform-prompts__editor-tag--json {
+    background-color: rgba(245, 158, 11, 0.15);
+    color: #d97706;
+}
+
+.easyform-prompts__editor-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.easyform-prompts__action-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+}
+
+.easyform-prompts__action-btn:hover {
+    background-color: var(--color-bg);
+    color: var(--color-text-primary);
+}
+
+.easyform-prompts__action-btn--success {
+    color: var(--color-success);
+}
+
+.easyform-prompts__editor-desc {
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: 12px;
+    color: var(--color-text-muted);
+    background-color: var(--color-bg);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.easyform-prompts__editor-content {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+}

@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EasyForm Playground</title>
+
+    <style>
+      html,body{
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+
+    <link rel="stylesheet" href="/vendor/antd/reset.css" />
+    <link rel="stylesheet" href="/easy-form/easy-form.css" />
+
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "/vendor/react/index.js",
+          "react-dom": "/vendor/react-dom/index.js",
+          "react-dom/client": "/vendor/react-dom/client.js",
+          "react/jsx-runtime": "/vendor/react/jsx-runtime.js",
+          "react/jsx-dev-runtime": "/vendor/react/jsx-dev-runtime.js",
+          "easy-form": "/easy-form/index.js",
+          "@components/": "/easy-form/components/",
+          "@services/": "/easy-form/services/",
+          "@utils/": "/easy-form/utils/",
+          "@config/": "/easy-form/config/",
+          "antd": "/vendor/antd/index.js",
+          "@ant-design/icons": "/vendor/ant-design-icons/index.js",
+          "@ant-design/cssinjs": "/vendor/ant-design-cssinjs/index.js",
+          "lodash": "/vendor/lodash/index.js",
+          "eventemitter3": "/vendor/eventemitter3/index.js",
+          "dayjs": "/vendor/dayjs/index.js",
+          "dayjs/plugin/utc": "/vendor/dayjs/plugin/utc.js",
+          "dayjs/plugin/timezone": "/vendor/dayjs/plugin/timezone.js",
+          "dayjs/plugin/isSameOrBefore": "/vendor/dayjs/plugin/isSameOrBefore.js",
+          "dayjs/plugin/isSameOrAfter": "/vendor/dayjs/plugin/isSameOrAfter.js",
+          "dayjs/plugin/customParseFormat": "/vendor/dayjs/plugin/customParseFormat.js",
+          "uuid": "/vendor/uuid/index.js",
+          "uuid/": "/vendor/uuid/",
+          "blueimp-md5": "/vendor/blueimp-md5/index.js",
+          "validator": "/vendor/validator/index.js",
+          "validator/lib/isEmail": "/vendor/validator/lib/isEmail.js",
+          "validator/lib/isIP": "/vendor/validator/lib/isIP.js",
+          "validator/lib/isIPRange": "/vendor/validator/lib/isIPRange.js",
+          "validator/lib/isURL": "/vendor/validator/lib/isURL.js",
+          "validator/lib/isPort": "/vendor/validator/lib/isPort.js",
+          "validator/lib/isIdentityCard": "/vendor/validator/lib/isIdentityCard.js",
+          "classnames": "/vendor/classnames/index.js",
+          "prop-types": "/vendor/prop-types/index.js",
+          "react-sortable-hoc": "/vendor/react-sortable-hoc/index.js",
+          "array-move": "/vendor/array-move/index.js",
+          "zustand": "/vendor/zustand/index.js",
+          "zustand/middleware": "/vendor/zustand/middleware.js",
+          "zustand/vanilla": "/vendor/zustand/vanilla.js",
+          "zustand/": "/vendor/zustand/",
+          "use-sync-external-store/": "/vendor/use-sync-external-store/",
+          "@swc/wasm-web": "/vendor/swc/wasm-web/wasm.js"
+        }
+      }
+    </script>
+
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background: #ffffff;
+      }
+
+      #preview {
+        width: 100%;
+        height: 100%;
+        background: #ffffff;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="preview"></div>
+
+    <script type="module">
+      import initSwc, { transformSync } from "@swc/wasm-web";
+
+      const previewEl = document.getElementById("preview");
+
+      let swcReady = false;
+      let umdReady = false;
+      let React = null;
+      let createRoot = null;
+      let root = null;
+      let latestRunId = 0;
+
+      if (!window.process) {
+        window.process = { env: { NODE_ENV: "production" } };
+      }
+
+      function loadScript(src) {
+        return new Promise((resolve, reject) => {
+          const existing = document.querySelector(`script[data-src="${src}"]`);
+          if (existing) {
+            if (existing.dataset.loaded === "true") {
+              resolve();
+              return;
+            }
+            existing.addEventListener("load", resolve, { once: true });
+            existing.addEventListener("error", reject, { once: true });
+            return;
+          }
+
+          const script = document.createElement("script");
+          script.src = src;
+          script.async = true;
+          script.dataset.src = src;
+          script.onload = () => {
+            script.dataset.loaded = "true";
+            resolve();
+          };
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+      }
+
+      async function ensureRuntime() {
+        if (!React || !createRoot) {
+          await loadScript("/vendor/react/react.production.min.js");
+          await loadScript("/vendor/react-dom/react-dom.production.min.js");
+          React = window.React;
+          createRoot = window.ReactDOM && window.ReactDOM.createRoot;
+          if (!React || !createRoot) {
+            throw new Error("React UMD not available");
+          }
+        }
+
+        if (!swcReady) {
+          await initSwc();
+          swcReady = true;
+        }
+
+        if (!umdReady) {
+          await loadScript("/vendor/lodash/lodash.min.js");
+          await loadScript("/vendor/eventemitter3/eventemitter3.min.js");
+          await loadScript("/vendor/dayjs/dayjs.min.js");
+          await loadScript("/vendor/dayjs/plugin/utc.umd.js");
+          await loadScript("/vendor/dayjs/plugin/timezone.umd.js");
+          await loadScript("/vendor/dayjs/plugin/isSameOrBefore.umd.js");
+          await loadScript("/vendor/dayjs/plugin/isSameOrAfter.umd.js");
+          await loadScript("/vendor/dayjs/plugin/customParseFormat.umd.js");
+          await loadScript("/vendor/blueimp-md5/md5.min.js");
+          await loadScript("/vendor/validator/validator.min.js");
+          await loadScript("/vendor/classnames/classnames.js");
+          await loadScript("/vendor/prop-types/prop-types.min.js");
+          await loadScript("/vendor/react-sortable-hoc/react-sortable-hoc.umd.min.js");
+          await loadScript("/vendor/ant-design-cssinjs/cssinjs.min.js");
+          await loadScript("/vendor/antd/antd.min.js");
+          await loadScript("/vendor/ant-design-icons/icons.min.js");
+          if (!window.antd) {
+            throw new Error("antd UMD not available");
+          }
+          if (!window.icons) {
+            throw new Error("ant-design icons UMD not available");
+          }
+          if (!window.antdCssinjs) {
+            throw new Error("@ant-design/cssinjs UMD not available");
+          }
+          if (!window.PropTypes) {
+            throw new Error("prop-types UMD not available");
+          }
+          if (!window.SortableHOC) {
+            throw new Error("react-sortable-hoc UMD not available");
+          }
+          umdReady = true;
+        }
+      }
+
+      async function runSource(source) {
+        const runId = ++latestRunId;
+        await ensureRuntime();
+
+        const tC0 = performance.now();
+        const out = transformSync(source, {
+          jsc: {
+            parser: { syntax: "typescript", tsx: true },
+            transform: { react: { runtime: "automatic", development: false } }
+          },
+          module: { type: "es6" },
+          sourceMaps: false
+        });
+        const tC1 = performance.now();
+        if (runId !== latestRunId) return null;
+
+        const blob = new Blob([out.code], { type: "text/javascript;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+
+        const tI0 = performance.now();
+        const mod = await import(url);
+        const tI1 = performance.now();
+        URL.revokeObjectURL(url);
+        if (runId !== latestRunId) return null;
+
+        const App = mod.default ?? mod.App;
+        if (!App) {
+          throw new Error("Missing default/App export");
+        }
+
+        if (root) root.unmount();
+        root = createRoot(previewEl);
+
+        const tR0 = performance.now();
+        root.render(React.createElement(App, null));
+        await new Promise(requestAnimationFrame);
+        const tR1 = performance.now();
+        if (runId !== latestRunId) return null;
+
+        return {
+          compileMs: tC1 - tC0,
+          importMs: tI1 - tI0,
+          renderMs: tR1 - tR0
+        };
+      }
+
+      function getMessagePayload(data) {
+        if (typeof data === "string") return { code: data };
+        if (!data || typeof data !== "object") return null;
+        if (typeof data.code === "string") return data;
+        return null;
+      }
+
+      function postResult(event, payload) {
+        const targetOrigin = event.origin && event.origin !== "null" ? event.origin : "*";
+        if (event.source && event.source.postMessage) {
+          event.source.postMessage(payload, targetOrigin);
+        }
+      }
+
+      window.addEventListener("message", async (event) => {
+        const payload = getMessagePayload(event.data);
+        if (!payload) return;
+
+        const requestId = payload.requestId ?? null;
+        const source = payload.code;
+
+        try {
+          const metrics = await runSource(source);
+          if (!metrics) return;
+          postResult(event, {
+            type: "easyform:render:ok",
+            requestId,
+            metrics
+          });
+        } catch (err) {
+          postResult(event, {
+            type: "easyform:render:error",
+            requestId,
+            error: {
+              message: err?.message || String(err),
+              stack: err?.stack || ""
+            }
+          });
+        }
+      });
+    </script>
+  </body>
+</html>
