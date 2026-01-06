@@ -1,15 +1,16 @@
 import { useState } from 'react';
-import { ArrowLeft, FileText, Key, Sliders, Zap, Globe, Bookmark, Network } from 'lucide-react';
+import { ArrowLeft, FileText, Key, Sliders, Zap, Globe, Bookmark, Network, Wifi } from 'lucide-react';
 import { PromptManager } from './PromptManager';
 import { ModelConfig } from './ModelConfig';
 import { ApifoxConfig } from './ApifoxConfig';
 import { EasyFormPrompts } from './EasyFormPrompts';
 import { BestExamples } from './BestExamples';
 import { ProxyConfig } from './ProxyConfig';
+import { NetworkProxy } from './NetworkProxy';
 import { ConfigExportImport } from './ConfigExportImport';
 import './SettingsPage.css';
 
-type SettingsTab = 'prompts' | 'easyform' | 'api-key' | 'model-config' | 'apifox-config' | 'best-examples' | 'proxy-config';
+type SettingsTab = 'prompts' | 'easyform' | 'api-key' | 'model-config' | 'apifox-config' | 'best-examples' | 'network-proxy' | 'proxy-config';
 
 interface SettingsPageProps {
     onBack: () => void;
@@ -31,6 +32,8 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
                 return <ApifoxConfig />;
             case 'best-examples':
                 return <BestExamples />;
+            case 'network-proxy':
+                return <NetworkProxy />;
             case 'proxy-config':
                 return <ProxyConfig />;
             default:
@@ -98,6 +101,13 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
                             >
                                 <Globe size={16} />
                                 Apifox 配置
+                            </button>
+                            <button
+                                className={`settings-page__nav-item ${activeTab === 'network-proxy' ? 'settings-page__nav-item--active' : ''}`}
+                                onClick={() => setActiveTab('network-proxy')}
+                            >
+                                <Wifi size={16} />
+                                网络代理
                             </button>
                             <button
                                 className={`settings-page__nav-item ${activeTab === 'proxy-config' ? 'settings-page__nav-item--active' : ''}`}

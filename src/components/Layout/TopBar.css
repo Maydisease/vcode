@@ -149,3 +149,28 @@
     background-color: var(--color-bg);
     color: var(--color-text-primary);
 }
+
+.top-bar__preview-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+}
+
+.top-bar__preview-btn:hover:not(:disabled) {
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+    background: rgba(99, 102, 241, 0.05);
+}
+
+.top-bar__preview-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

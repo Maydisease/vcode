@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
-import { Plus, Trash2, Edit2, Check, X, ToggleLeft, ToggleRight, Server, Radio, Key } from 'lucide-react';
+import { Plus, Trash2, Edit2, Check, X, ToggleLeft, ToggleRight, Server, Radio, Key, ChevronRight, Globe } from 'lucide-react';
 import { useSettingsStore } from '../../stores/settingsStore';
 import type { ProxyRule, HostGroup } from '../../types';
+import './ProxyConfig.css';
 
 interface EditingRule {
     id: string | null;
@@ -43,7 +44,7 @@ export function ProxyConfig() {
             name: newHost.name.trim(),
             host: newHost.host.trim(),
             tokenId: newHost.tokenId?.trim(),
-            isActive: hostGroups.length === 0, // First one is active by default
+            isActive: hostGroups.length === 0,
         });
 
         setNewHost({ name: '', host: '', tokenId: '' });
@@ -126,94 +127,92 @@ export function ProxyConfig() {
 
     return (
         <div className="proxy-config">
-            {/* Host Groups Section */}
-            <div className="settings-section">
-                <div className="settings-section__header">
-                    <h2 className="settings-section__title">
-                        <Server size={18} style={{ marginRight: 8, verticalAlign: 'middle' }} />
-                        服务器环境
-                    </h2>
-                    <p className="settings-section__description">
-                        管理多个服务器环境，快速切换 Host 地址。选中的环境可快速应用到代理规则。
-                    </p>
+            {/* Server Environment Section */}
+            <div className="proxy-config__section">
+                <div className="proxy-config__section-header">
+                    <div className="proxy-config__section-title">
+                        <Server size={18} />
+                        <span>服务器环境</span>
+                    </div>
+                    {!isAddingHost && (
+                        <button
+                            className="proxy-config__section-action"
+                            onClick={() => setIsAddingHost(true)}
+                        >
+                            <Plus size={16} />
+                            添加
+                        </button>
+                    )}
                 </div>
 
-                <div className="proxy-config__host-list">
+                <div className="proxy-config__server-grid">
                     {hostGroups.length === 0 && !isAddingHost && (
-                        <div className="proxy-config__empty">
-                            暂无服务器环境，点击下方按钮添加
+                        <div className="proxy-config__empty-state">
+                            <Globe size={32} />
+                            <span>暂无服务器环境</span>
+                            <button onClick={() => setIsAddingHost(true)}>添加第一个环境</button>
                         </div>
                     )}
 
                     {hostGroups.map((host) => (
                         <div
                             key={host.id}
-                            className={`proxy-config__host-item ${host.isActive ? 'proxy-config__host-item--active' : ''}`}
+                            className={`proxy-config__server-card ${host.isActive ? 'proxy-config__server-card--active' : ''}`}
+                            onClick={() => !editingHost && setActiveHostGroup(host.id)}
                         >
                             {editingHost?.id === host.id ? (
-                                <div className="proxy-config__item-editing">
+                                <div className="proxy-config__server-card-edit">
                                     <input
                                         type="text"
-                                        className="proxy-config__input"
-                                        placeholder="名称，如 开发环境"
+                                        placeholder="环境名称"
                                         value={editingHost.name}
                                         onChange={(e) => setEditingHost({ ...editingHost, name: e.target.value })}
+                                        onClick={(e) => e.stopPropagation()}
+                                        autoFocus
                                     />
                                     <input
                                         type="text"
-                                        className="proxy-config__input proxy-config__input--target"
-                                        placeholder="地址，如 https://172.20.66.66:2505"
+                                        placeholder="https://example.com"
                                         value={editingHost.host}
                                         onChange={(e) => setEditingHost({ ...editingHost, host: e.target.value })}
+                                        onClick={(e) => e.stopPropagation()}
                                     />
                                     <input
                                         type="text"
-                                        className="proxy-config__input proxy-config__input--token"
-                                        placeholder="Cookie TokenId (选填)"
+                                        placeholder="TokenId (选填)"
                                         value={editingHost.tokenId || ''}
                                         onChange={(e) => setEditingHost({ ...editingHost, tokenId: e.target.value })}
+                                        onClick={(e) => e.stopPropagation()}
                                     />
-                                    <div className="proxy-config__item-actions">
-                                        <button className="proxy-config__btn proxy-config__btn--save" onClick={handleSaveEditHost}>
-                                            <Check size={14} />
+                                    <div className="proxy-config__server-card-edit-actions">
+                                        <button className="proxy-config__btn--confirm" onClick={(e) => { e.stopPropagation(); handleSaveEditHost(); }}>
+                                            <Check size={16} /> 保存
                                         </button>
-                                        <button className="proxy-config__btn proxy-config__btn--cancel" onClick={() => setEditingHost(null)}>
-                                            <X size={14} />
+                                        <button className="proxy-config__btn--cancel" onClick={(e) => { e.stopPropagation(); setEditingHost(null); }}>
+                                            取消
                                         </button>
                                     </div>
                                 </div>
                             ) : (
                                 <>
-                                    <button
-                                        className="proxy-config__host-select"
-                                        onClick={() => setActiveHostGroup(host.id)}
-                                        title={host.isActive ? '当前选中' : '点击选择'}
-                                    >
-                                        <Radio size={16} className={host.isActive ? 'proxy-config__radio--active' : ''} />
-                                    </button>
-                                    <div className="proxy-config__host-content" onClick={() => setActiveHostGroup(host.id)}>
-                                        <span className="proxy-config__host-name">{host.name}</span>
-                                        <code className="proxy-config__host-url">{host.host}</code>
+                                    <div className="proxy-config__server-card-indicator">
+                                        <Radio size={16} className={host.isActive ? 'active' : ''} />
+                                    </div>
+                                    <div className="proxy-config__server-card-info">
+                                        <div className="proxy-config__server-card-name">{host.name}</div>
+                                        <div className="proxy-config__server-card-url">{host.host}</div>
                                         {host.tokenId && (
-                                            <span className="proxy-config__host-token" title="TokenId">
+                                            <div className="proxy-config__server-card-token">
                                                 <Key size={10} />
-                                                cookie -&gt; tokenId={host.tokenId}
-                                            </span>
+                                                <span>tokenId: {host.tokenId}</span>
+                                            </div>
                                         )}
                                     </div>
-                                    <div className="proxy-config__item-actions">
-                                        <button
-                                            className="proxy-config__btn proxy-config__btn--edit"
-                                            onClick={() => handleEditHost(host)}
-                                            title="编辑"
-                                        >
+                                    <div className="proxy-config__server-card-actions">
+                                        <button onClick={(e) => { e.stopPropagation(); handleEditHost(host); }} title="编辑">
                                             <Edit2 size={14} />
                                         </button>
-                                        <button
-                                            className="proxy-config__btn proxy-config__btn--delete"
-                                            onClick={() => handleDeleteHost(host.id)}
-                                            title="删除"
-                                        >
+                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteHost(host.id); }} title="删除" className="delete">
                                             <Trash2 size={14} />
                                         </button>
                                     </div>
@@ -223,134 +222,118 @@ export function ProxyConfig() {
                     ))}
 
                     {isAddingHost && (
-                        <div className="proxy-config__host-item proxy-config__host-item--new">
-                            <div className="proxy-config__item-editing">
+                        <div className="proxy-config__server-card proxy-config__server-card--new">
+                            <div className="proxy-config__server-card-edit">
                                 <input
                                     type="text"
-                                    className="proxy-config__input"
-                                    placeholder="名称，如 开发环境"
+                                    placeholder="环境名称，如：开发环境"
                                     value={newHost.name}
                                     onChange={(e) => setNewHost({ ...newHost, name: e.target.value })}
                                     autoFocus
                                 />
                                 <input
                                     type="text"
-                                    className="proxy-config__input proxy-config__input--target"
-                                    placeholder="地址，如 https://172.20.66.66:2505"
+                                    placeholder="服务器地址，如：https://172.20.66.66:2505"
                                     value={newHost.host}
                                     onChange={(e) => setNewHost({ ...newHost, host: e.target.value })}
                                 />
                                 <input
                                     type="text"
-                                    className="proxy-config__input proxy-config__input--token"
                                     placeholder="Cookie TokenId (选填)"
                                     value={newHost.tokenId || ''}
                                     onChange={(e) => setNewHost({ ...newHost, tokenId: e.target.value })}
                                 />
-                                <div className="proxy-config__item-actions">
-                                    <button className="proxy-config__btn proxy-config__btn--save" onClick={handleAddHost}>
-                                        <Check size={14} />
+                                <div className="proxy-config__server-card-edit-actions">
+                                    <button className="proxy-config__btn--confirm" onClick={handleAddHost}>
+                                        <Check size={16} /> 添加
                                     </button>
-                                    <button className="proxy-config__btn proxy-config__btn--cancel" onClick={() => setIsAddingHost(false)}>
-                                        <X size={14} />
+                                    <button className="proxy-config__btn--cancel" onClick={() => setIsAddingHost(false)}>
+                                        取消
                                     </button>
                                 </div>
                             </div>
                         </div>
                     )}
                 </div>
-
-                {!isAddingHost && (
-                    <button className="proxy-config__add-btn" onClick={() => setIsAddingHost(true)}>
-                        <Plus size={16} />
-                        添加服务器环境
-                    </button>
-                )}
             </div>
 
             {/* Proxy Rules Section */}
-            <div className="settings-section" style={{ marginTop: 24 }}>
-                <div className="settings-section__header">
-                    <h2 className="settings-section__title">代理规则</h2>
-                    <p className="settings-section__description">
-                        配置 URL 前缀到目标服务器的代理映射。使用 <code>{`{{HOST}}`}</code> 变量引用当前激活的服务器环境。
+            <div className="proxy-config__section">
+                <div className="proxy-config__section-header">
+                    <div className="proxy-config__section-title">
+                        <ChevronRight size={18} />
+                        <span>代理规则</span>
                         {activeHost && (
-                            <span className="proxy-config__active-hint">
-                                当前环境: <strong>{activeHost.name}</strong> ({activeHost.host})
-                            </span>
+                            <span className="proxy-config__section-badge">{activeHost.name}</span>
                         )}
-                    </p>
+                    </div>
+                    {!isAddingRule && (
+                        <button
+                            className="proxy-config__section-action"
+                            onClick={() => setIsAddingRule(true)}
+                        >
+                            <Plus size={16} />
+                            添加
+                        </button>
+                    )}
                 </div>
 
-                <div className="proxy-config__list">
+                <div className="proxy-config__rules-list">
                     {proxyRules.length === 0 && !isAddingRule && (
-                        <div className="proxy-config__empty">
-                            暂无代理规则，点击下方按钮添加
+                        <div className="proxy-config__empty-state proxy-config__empty-state--small">
+                            <span>暂无代理规则</span>
                         </div>
                     )}
 
                     {proxyRules.map((rule) => (
-                        <div key={rule.id} className={`proxy-config__item ${!rule.enabled ? 'proxy-config__item--disabled' : ''}`}>
+                        <div key={rule.id} className={`proxy-config__rule-item ${!rule.enabled ? 'proxy-config__rule-item--disabled' : ''}`}>
                             {editingRule?.id === rule.id ? (
-                                <div className="proxy-config__item-editing">
+                                <div className="proxy-config__rule-item-edit">
                                     <input
                                         type="text"
-                                        className="proxy-config__input"
-                                        placeholder="前缀，如 /dist"
+                                        placeholder="/api"
                                         value={editingRule.prefix}
                                         onChange={(e) => setEditingRule({ ...editingRule, prefix: e.target.value })}
+                                        autoFocus
                                     />
-                                    <span className="proxy-config__arrow">→</span>
+                                    <span className="proxy-config__rule-arrow">→</span>
                                     <input
                                         type="text"
-                                        className="proxy-config__input proxy-config__input--target"
-                                        placeholder="目标地址"
+                                        placeholder="{{HOST}}/path"
                                         value={editingRule.target}
                                         onChange={(e) => setEditingRule({ ...editingRule, target: e.target.value })}
                                     />
-                                    <div className="proxy-config__item-actions">
-                                        <button className="proxy-config__btn proxy-config__btn--save" onClick={handleSaveEditRule}>
-                                            <Check size={14} />
-                                        </button>
-                                        <button className="proxy-config__btn proxy-config__btn--cancel" onClick={handleCancelEditRule}>
-                                            <X size={14} />
-                                        </button>
+                                    <div className="proxy-config__rule-item-actions">
+                                        <button className="save" onClick={handleSaveEditRule}><Check size={14} /></button>
+                                        <button onClick={handleCancelEditRule}><X size={14} /></button>
                                     </div>
                                 </div>
                             ) : (
                                 <>
-                                    <div className="proxy-config__item-content">
-                                        <code className="proxy-config__prefix">{rule.prefix}</code>
-                                        <span className="proxy-config__arrow">→</span>
-                                        <div className="proxy-config__target-wrapper">
-                                            <code className="proxy-config__target">{rule.target}</code>
+                                    <div className="proxy-config__rule-item-content">
+                                        <code className="proxy-config__rule-prefix">{rule.prefix}</code>
+                                        <span className="proxy-config__rule-arrow">→</span>
+                                        <div className="proxy-config__rule-target">
+                                            <code>{rule.target}</code>
                                             {rule.target.includes('{{HOST}}') && activeHost && (
-                                                <span className="proxy-config__resolved">
-                                                    = {resolveHostVariable(rule.target)}
+                                                <span className="proxy-config__rule-resolved">
+                                                    {resolveHostVariable(rule.target)}
                                                 </span>
                                             )}
                                         </div>
                                     </div>
-                                    <div className="proxy-config__item-actions">
+                                    <div className="proxy-config__rule-item-actions">
                                         <button
-                                            className="proxy-config__btn proxy-config__btn--toggle"
+                                            className={`toggle ${rule.enabled ? 'on' : ''}`}
                                             onClick={() => toggleProxyRule(rule.id)}
                                             title={rule.enabled ? '禁用' : '启用'}
                                         >
                                             {rule.enabled ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
                                         </button>
-                                        <button
-                                            className="proxy-config__btn proxy-config__btn--edit"
-                                            onClick={() => handleEditRule(rule)}
-                                            title="编辑"
-                                        >
+                                        <button onClick={() => handleEditRule(rule)} title="编辑">
                                             <Edit2 size={14} />
                                         </button>
-                                        <button
-                                            className="proxy-config__btn proxy-config__btn--delete"
-                                            onClick={() => handleDeleteRule(rule.id)}
-                                            title="删除"
-                                        >
+                                        <button className="delete" onClick={() => handleDeleteRule(rule.id)} title="删除">
                                             <Trash2 size={14} />
                                         </button>
                                     </div>
@@ -360,47 +343,34 @@ export function ProxyConfig() {
                     ))}
 
                     {isAddingRule && (
-                        <div className="proxy-config__item proxy-config__item--new">
-                            <div className="proxy-config__item-editing">
+                        <div className="proxy-config__rule-item proxy-config__rule-item--new">
+                            <div className="proxy-config__rule-item-edit">
                                 <input
                                     type="text"
-                                    className="proxy-config__input"
-                                    placeholder="前缀，如 /dist"
+                                    placeholder="/api"
                                     value={newRule.prefix}
                                     onChange={(e) => setNewRule({ ...newRule, prefix: e.target.value })}
                                     autoFocus
                                 />
-                                <span className="proxy-config__arrow">→</span>
-                                <div className="proxy-config__target-input-group">
-                                    <span className="proxy-config__host-tag">{'{{HOST}}'}</span>
+                                <span className="proxy-config__rule-arrow">→</span>
+                                <div className="proxy-config__rule-target-input">
+                                    <span className="proxy-config__host-var">{'{{HOST}}'}</span>
                                     <input
                                         type="text"
-                                        className="proxy-config__input proxy-config__input--path"
                                         placeholder="/path"
                                         value={newRule.target.replace('{{HOST}}', '')}
                                         onChange={(e) => setNewRule({ ...newRule, target: '{{HOST}}' + e.target.value })}
                                     />
                                 </div>
-                            </div>
-                            <div className="proxy-config__item-actions">
-                                <button className="proxy-config__btn proxy-config__btn--save" onClick={handleAddRule}>
-                                    <Check size={14} />
-                                </button>
-                                <button className="proxy-config__btn proxy-config__btn--cancel" onClick={() => setIsAddingRule(false)}>
-                                    <X size={14} />
-                                </button>
+                                <div className="proxy-config__rule-item-actions">
+                                    <button className="save" onClick={handleAddRule}><Check size={14} /></button>
+                                    <button onClick={() => setIsAddingRule(false)}><X size={14} /></button>
+                                </div>
                             </div>
                         </div>
                     )}
                 </div>
-
-                {!isAddingRule && (
-                    <button className="proxy-config__add-btn" onClick={() => setIsAddingRule(true)}>
-                        <Plus size={16} />
-                        添加代理规则
-                    </button>
-                )}
             </div>
-        </div >
+        </div>
     );
 }

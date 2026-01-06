@@ -145,12 +145,13 @@ export function TopBar({ onSettingsClick, onPreviewClick }: TopBarProps) {
                     {getGenerateButtonText()}
                 </button>
                 <button
-                    className="top-bar__settings-btn"
+                    className="top-bar__preview-btn"
                     onClick={onPreviewClick}
                     title="预览代码"
                     disabled={isGenerating}
                 >
-                    <Play size={20} />
+                    <Play size={16} />
+                    预览
                 </button>
                 <button
                     className="top-bar__settings-btn"

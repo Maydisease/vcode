@@ -1,6 +1,7 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use serde_json::Value;
 
+mod http_client;
 mod llm;
 mod server;
 mod tokenizer;
@@ -17,7 +18,7 @@ async fn fetch_apifox_openapi(project_id: String, token: String) -> Result<Value
         project_id
     );
 
-    let client = reqwest::Client::new();
+    let client = http_client::get_client();
 
     let response = client
         .post(&url)
@@ -53,6 +54,8 @@ pub fn run() {
             tauri::async_runtime::spawn(async move {
                 server::start_server(handle).await;
             });
+            // Initialize HTTP client
+            http_client::init();
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -69,7 +72,10 @@ pub fn run() {
             llm::fetch_openai_models,
             llm::generate_code_openai,
             llm::generate_code_gemini,
-            llm::parse_image_description
+            llm::parse_image_description,
+            // HTTP commands
+            http_client::set_proxy_enabled,
+            http_client::get_proxy_enabled
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

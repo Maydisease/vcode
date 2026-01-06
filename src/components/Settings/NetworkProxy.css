@@ -1,0 +1,167 @@
+/* NetworkProxy.css */
+
+.network-proxy {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    max-width: 600px;
+}
+
+.network-proxy__header {
+    margin-bottom: 8px;
+}
+
+.network-proxy__title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0 0 8px 0;
+}
+
+.network-proxy__title svg {
+    color: var(--color-primary);
+}
+
+.network-proxy__desc {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    margin: 0;
+}
+
+.network-proxy__cards {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Main Toggle Card */
+.network-proxy__card {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 24px;
+    background: var(--color-card);
+    border: 2px solid var(--color-border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.network-proxy__card:hover {
+    border-color: var(--color-primary);
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.12);
+}
+
+.network-proxy__card--active {
+    border-color: var(--color-primary);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.04) 0%, rgba(99, 102, 241, 0.08) 100%);
+}
+
+.network-proxy__card-icon {
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    color: var(--color-text-muted);
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+}
+
+.network-proxy__card--active .network-proxy__card-icon {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: white;
+}
+
+.network-proxy__card-content {
+    flex: 1;
+}
+
+.network-proxy__card-content h3 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0 0 6px 0;
+}
+
+.network-proxy__card-content p {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* Custom Switch */
+.network-proxy__switch {
+    width: 56px;
+    height: 32px;
+    background: var(--color-border);
+    border-radius: 16px;
+    padding: 3px;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.network-proxy__switch--on {
+    background: var(--color-primary);
+}
+
+.network-proxy__switch-thumb {
+    width: 26px;
+    height: 26px;
+    background: white;
+    border-radius: 13px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+    transition: transform 0.2s ease;
+}
+
+.network-proxy__switch--on .network-proxy__switch-thumb {
+    transform: translateX(24px);
+}
+
+/* Info Card */
+.network-proxy__info {
+    display: flex;
+    gap: 14px;
+    padding: 18px 20px;
+    background: rgba(99, 102, 241, 0.04);
+    border: 1px solid rgba(99, 102, 241, 0.15);
+    border-radius: 10px;
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+}
+
+.network-proxy__info svg {
+    color: var(--color-primary);
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.network-proxy__info strong {
+    display: block;
+    color: var(--color-text-primary);
+    margin-bottom: 4px;
+    margin-top: 12px;
+}
+
+.network-proxy__info strong:first-child {
+    margin-top: 0;
+}
+
+.network-proxy__info ul {
+    margin: 0;
+    padding-left: 18px;
+}
+
+.network-proxy__info li {
+    margin-bottom: 2px;
+}

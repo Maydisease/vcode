@@ -5,13 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter};
 
-/// Create a reqwest client that bypasses system proxy
-fn create_client() -> reqwest::Client {
-    reqwest::Client::builder()
-        .no_proxy() // Bypass all proxies
-        .build()
-        .unwrap_or_else(|_| reqwest::Client::new())
-}
+use crate::http_client;
 
 // ============================================================================
 // OpenAI Compatible API - Connection Test
@@ -28,7 +22,7 @@ pub async fn test_openai_connection(base_url: String, api_key: String) -> Result
     let url = format!("{}/models", base_url);
     println!("[LLM] final url: {}", url);
 
-    let client = create_client();
+    let client = http_client::get_client();
 
     let response = match client
         .get(&url)
@@ -90,7 +84,7 @@ pub async fn test_gemini_connection(api_key: String) -> Result<String, String> {
         api_key
     );
 
-    let client = create_client();
+    let client = http_client::get_client();
     let response = client
         .get(&url)
         .send()
@@ -125,7 +119,7 @@ pub async fn fetch_gemini_models(api_key: String) -> Result<Vec<GeminiModel>, St
         api_key
     );
 
-    let client = create_client();
+    let client = http_client::get_client();
     let response = client
         .get(&url)
         .send()
@@ -207,7 +201,7 @@ pub async fn fetch_openai_models(
     let base_url = base_url.trim_end_matches('/');
     let url = format!("{}/models", base_url);
 
-    let client = create_client();
+    let client = http_client::get_client();
     let response = client
         .get(&url)
         .header("Authorization", format!("Bearer {}", api_key))
@@ -312,7 +306,7 @@ pub async fn generate_code_openai(
         "stream": true
     });
 
-    let client = create_client();
+    let client = http_client::get_client();
     let response = client
         .post(&url)
         .header("Content-Type", "application/json")
@@ -455,7 +449,7 @@ pub async fn generate_code_gemini(
         }
     });
 
-    let client = create_client();
+    let client = http_client::get_client();
     let response = client
         .post(&url)
         .header("Content-Type", "application/json")
@@ -577,7 +571,7 @@ pub async fn parse_image_description(
         }]
     });
 
-    let client = create_client();
+    let client = http_client::get_client();
     let response = client
         .post(&url)
         .header("Content-Type", "application/json")

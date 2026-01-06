@@ -59,6 +59,8 @@
 }
 
 .sandbox-preview__action-btn {
+    display: flex;
+    align-items: center;
     padding: 6px;
     border-radius: var(--radius-sm);
     color: var(--color-text-secondary);

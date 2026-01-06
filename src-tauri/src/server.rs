@@ -5,7 +5,6 @@ use axum::{
     response::{IntoResponse, Response},
     Router,
 };
-use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::{
     net::SocketAddr,
@@ -34,11 +33,10 @@ lazy_static::lazy_static! {
     pub static ref AUTH_TOKEN: Arc<RwLock<Option<String>>> = Arc::new(RwLock::new(None));
 }
 
-// State to hold the root directory and http client
+// State to hold the root directory
 #[derive(Clone)]
 struct AppState {
     static_dir: PathBuf,
-    http_client: Client,
 }
 
 pub async fn start_server(app_handle: tauri::AppHandle) {
@@ -77,17 +75,8 @@ pub async fn start_server(app_handle: tauri::AppHandle) {
         );
     }
 
-    // Create HTTP client that accepts invalid certs (for dev servers)
-    // and bypasses system proxy (VPN) to ensure connectivity to internal IPs
-    let http_client = Client::builder()
-        .danger_accept_invalid_certs(true)
-        .no_proxy()
-        .build()
-        .expect("Failed to create HTTP client");
-
     let state = AppState {
         static_dir: static_dir.clone(),
-        http_client,
     };
 
     let app = Router::new()
@@ -154,7 +143,6 @@ async fn handle_request(
         };
 
         return handle_proxy_request(
-            &state,
             dest_path,
             query.as_deref(),
             &rule.target,
@@ -171,7 +159,6 @@ async fn handle_request(
 
 // Handle proxy request - forward to target server
 async fn handle_proxy_request(
-    state: &AppState,
     path: &str,
     query: Option<&str>,
     target: &str,
@@ -195,13 +182,16 @@ async fn handle_proxy_request(
         println!("[Proxy] Params: {}", q);
     }
 
+    // Get dynamic global client
+    let client = crate::http_client::get_client();
+
     let mut proxy_req = match method {
-        Method::GET => state.http_client.get(&target_url),
-        Method::POST => state.http_client.post(&target_url),
-        Method::PUT => state.http_client.put(&target_url),
-        Method::DELETE => state.http_client.delete(&target_url),
-        Method::PATCH => state.http_client.patch(&target_url),
-        _ => state.http_client.get(&target_url),
+        Method::GET => client.get(&target_url),
+        Method::POST => client.post(&target_url),
+        Method::PUT => client.put(&target_url),
+        Method::DELETE => client.delete(&target_url),
+        Method::PATCH => client.patch(&target_url),
+        _ => client.get(&target_url),
     };
 
     // Forward relevant headers
