@@ -122,7 +122,7 @@ function FileTreeItem({ file, isActive, onSelect, onDelete, onCompare }: FileTre
 }
 
 export function FileTree() {
-    const { files, activeFileId, openTab, deleteFile, openDiffView } = useProjectStore();
+    const { files, activeFileId, openTab, deleteFile, openDiffView, projectSource } = useProjectStore();
 
     const handleSelectFile = useCallback((fileId: string) => {
         openTab(fileId);
@@ -165,7 +165,12 @@ export function FileTree() {
     return (
         <div className="file-tree">
             <div className="file-tree__header">
-                <span className="file-tree__title">文件</span>
+                <span className="file-tree__title">
+                    文件
+                    {files.length > 0 && projectSource === 'history' && (
+                        <span className="file-tree__badge file-tree__badge--history">历史记录</span>
+                    )}
+                </span>
                 <div className="file-tree__actions">
                     <button
                         className="file-tree__action-btn"

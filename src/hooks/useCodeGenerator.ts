@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useGeneratorStore } from '../stores/generatorStore';
 import { useLogStore } from '../stores/logStore';
+import { useHistoryStore } from '../stores/historyStore';
 import { useProjectStore, parseMultiFileOutput } from '../stores/projectStore';
 import { initializeGemini, generateCodeFromImage } from '../services/geminiService';
 import { initializeOpenAI, generateCodeFromImageOpenAI } from '../services/openaiService';
@@ -104,6 +105,7 @@ export function useCodeGenerator() {
     } = useGeneratorStore();
     const { addLog, startTask, completeTask, clearLogs } = useLogStore();
     const { setFiles, clearProject, addFileVersion } = useProjectStore();
+    const { addRecord } = useHistoryStore();
 
     const handleImageUpload = useCallback(async (file: File) => {
         reset();
@@ -215,32 +217,38 @@ export function useCodeGenerator() {
             }
             completeTask(initLogId, provider === 'google' ? 'Gemini API 初始化完成' : 'OpenAI API 初始化完成', 'success');
 
-            // Stage 1: Generate index.tsx
+            // Stage 1: Generate all 3 files in parallel (with individual log entries)
             const indexLogId = startTask('正在生成 index.tsx...');
-            setProgress(10);
-            const indexResult = await generateSingleFile('index', selectedApis);
-            completeTask(indexLogId, 'index.tsx 生成完成', 'success', {
-                inputTokens: indexResult.inputTokens,
-                outputTokens: indexResult.outputTokens,
-            }, indexResult.promptContent);
-
-            // Stage 2: Generate modal.tsx
             const modalLogId = startTask('正在生成 modal.tsx...');
-            setProgress(35);
-            const modalResult = await generateSingleFile('modal', selectedApis);
-            completeTask(modalLogId, 'modal.tsx 生成完成', 'success', {
-                inputTokens: modalResult.inputTokens,
-                outputTokens: modalResult.outputTokens,
-            }, modalResult.promptContent);
-
-            // Stage 3: Generate scope.service.ts
             const serviceLogId = startTask('正在生成 scope.service.ts...');
+            setProgress(10);
+
+            // Run all 3 file generations in parallel
+            const [indexResult, modalResult, serviceResult] = await Promise.all([
+                generateSingleFile('index', selectedApis).then(result => {
+                    completeTask(indexLogId, 'index.tsx 生成完成', 'success', {
+                        inputTokens: result.inputTokens,
+                        outputTokens: result.outputTokens,
+                    }, result.promptContent);
+                    return result;
+                }),
+                generateSingleFile('modal', selectedApis).then(result => {
+                    completeTask(modalLogId, 'modal.tsx 生成完成', 'success', {
+                        inputTokens: result.inputTokens,
+                        outputTokens: result.outputTokens,
+                    }, result.promptContent);
+                    return result;
+                }),
+                generateSingleFile('service', selectedApis).then(result => {
+                    completeTask(serviceLogId, 'scope.service.ts 生成完成', 'success', {
+                        inputTokens: result.inputTokens,
+                        outputTokens: result.outputTokens,
+                    }, result.promptContent);
+                    return result;
+                }),
+            ]);
+
             setProgress(60);
-            const serviceResult = await generateSingleFile('service', selectedApis);
-            completeTask(serviceLogId, 'scope.service.ts 生成完成', 'success', {
-                inputTokens: serviceResult.inputTokens,
-                outputTokens: serviceResult.outputTokens,
-            }, serviceResult.promptContent);
 
             // Stage 4: Refinement (merge and fix relationships)
             const refineLogId = startTask('正在整合优化代码...');
@@ -357,6 +365,20 @@ export function useCodeGenerator() {
             setStep('done');
             setProgress(100);
             addLog(`代码生成完成! 共 ${filesWithVersions.length} 个文件`, 'success');
+
+            // Save to history
+            const { imagePreview, selectedApis: apis } = useGeneratorStore.getState();
+            addRecord({
+                imagePreview: imagePreview || undefined,
+                generatedCode: `===FILE: index.tsx===\n${indexCode}\n\n===FILE: modal.tsx===\n${modalCode}\n\n===FILE: scope.service.ts===\n${serviceCode}`,
+                files: filesWithVersions,
+                mode: 'easyform',
+                modelUsed: modelConfig.model || 'gemini-2.0-flash',
+                promptSummary: 'EasyForm 表单生成',
+                selectedApis: apis ? [apis.createApi?.summary, apis.updateApi?.summary, apis.queryApi?.summary].filter(Boolean) as string[] : undefined,
+                inputTokens: indexResult.inputTokens + modalResult.inputTokens + serviceResult.inputTokens + refineInputTokens,
+                outputTokens: indexResult.outputTokens + modalResult.outputTokens + serviceResult.outputTokens + refineOutputTokenResult.count,
+            });
         } catch (error) {
             const message = error instanceof Error ? error.message : '未知错误';
             addLog(`生成失败: ${message}`, 'error');
@@ -422,13 +444,24 @@ export function useCodeGenerator() {
 
             completeTask(generateLogId, `代码生成完成! 共 ${files.length} 个文件`, 'success');
             setProgress(100);
+
+            // Save to history
+            const { imagePreview } = useGeneratorStore.getState();
+            addRecord({
+                imagePreview: imagePreview || undefined,
+                generatedCode: cleanedCode,
+                files: files,
+                mode: 'general',
+                modelUsed: modelConfig.model || 'gemini-2.0-flash',
+                promptSummary: '通用代码生成',
+            });
         } catch (error) {
             const message = error instanceof Error ? error.message : '未知错误';
             addLog(`生成失败: ${message}`, 'error');
         } finally {
             setIsGenerating(false);
         }
-    }, [apiKey, prompts, modelConfig, addLog, startTask, completeTask, setIsGenerating, setGeneratedCode, appendCode, setProgress, setFiles, clearProject]);
+    }, [apiKey, prompts, modelConfig, addLog, startTask, completeTask, setIsGenerating, setGeneratedCode, appendCode, setProgress, setFiles, clearProject, addRecord]);
 
     return {
         handleImageUpload,

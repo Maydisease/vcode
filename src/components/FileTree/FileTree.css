@@ -23,7 +23,27 @@
 .file-tree__title {
     font-size: 14px;
     font-weight: 600;
+    font-weight: 600;
     color: var(--color-text-primary);
+    display: flex;
+    align-items: center;
+}
+
+.file-tree__badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 500;
+    margin-left: 8px;
+    line-height: 1;
+}
+
+.file-tree__badge--history {
+    background-color: var(--color-warning-bg);
+    color: var(--color-warning);
+    border: 1px solid var(--color-warning-border);
 }
 
 .file-tree__actions {

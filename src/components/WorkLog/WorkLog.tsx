@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Editor from '@monaco-editor/react';
-import { FileText, Info, CheckCircle, AlertTriangle, XCircle, Trash2, X, Timer, Zap, FileCode, Terminal } from 'lucide-react';
+import { FileText, Info, CheckCircle, AlertTriangle, XCircle, X, Timer, Zap, FileCode, Terminal } from 'lucide-react';
 import { useLogStore } from '../../stores/logStore';
 import { useGeneratorStore } from '../../stores/generatorStore';
 import { formatTokenCount } from '../../services/tokenService';
@@ -23,7 +23,7 @@ function formatTime(timestamp: number): string {
     });
 }
 
-function formatDuration(ms: number): string {
+export function formatDuration(ms: number): string {
     if (ms < 1000) return `${ms}ms`;
     const seconds = Math.floor(ms / 1000);
     if (seconds < 60) return `${seconds}s`;
@@ -242,7 +242,7 @@ function TotalSummary() {
 }
 
 export function WorkLog() {
-    const { logs, clearLogs } = useLogStore();
+    const { logs } = useLogStore();
     const contentRef = useRef<HTMLDivElement>(null);
     const [previewImage, setPreviewImage] = useState<string | null>(null);
     const [viewingPrompt, setViewingPrompt] = useState<{ content: string; title: string } | null>(null);
@@ -272,17 +272,7 @@ export function WorkLog() {
 
     return (
         <div className="work-log">
-            <div className="work-log__header">
-                <div className="work-log__title">
-                    <FileText size={16} />
-                    <span>工作日志</span>
-                </div>
-                {logs.length > 0 && (
-                    <button className="work-log__clear-btn" onClick={clearLogs}>
-                        <Trash2 size={14} />
-                    </button>
-                )}
-            </div>
+            {/* Header removed and merged into SidePanel tabs */}
             <div className="work-log__content" ref={contentRef}>
                 {logs.length === 0 ? (
                     <div className="work-log__empty">

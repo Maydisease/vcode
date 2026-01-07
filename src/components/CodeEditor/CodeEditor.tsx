@@ -1,10 +1,12 @@
 import { useState, useCallback } from 'react';
 import Editor, { BeforeMount } from '@monaco-editor/react';
-import { Code2, Copy, Check, Download, Package } from 'lucide-react';
+import { Code2, Copy, Check, Download, Package, Save } from 'lucide-react';
 import { useProjectStore } from '../../stores/projectStore';
 import { FileTree } from '../FileTree/FileTree';
 import { EditorTabs } from '../EditorTabs/EditorTabs';
 import { DiffViewer } from '../DiffViewer/DiffViewer';
+import { saveToFile } from '../../services/exportService';
+import { toast } from '../Toast/Toast';
 import './CodeEditor.css';
 
 // Disable TypeScript diagnostics (syntax errors, type errors)
@@ -35,9 +37,11 @@ export function CodeEditor() {
         try {
             await navigator.clipboard.writeText(activeFile.content);
             setCopied(true);
+            toast.success(`已复制: ${activeFile.name}`);
             setTimeout(() => setCopied(false), 2000);
         } catch (error) {
             console.error('Failed to copy:', error);
+            toast.error('复制失败');
         }
     }, [activeFile]);
 
@@ -53,11 +57,16 @@ export function CodeEditor() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+        toast.success(`已下载: ${activeFile.name}`);
+    }, [activeFile]);
+
+    const handleSaveToFile = useCallback(async () => {
+        if (!activeFile?.content) return;
+        await saveToFile(activeFile.content, activeFile.name);
     }, [activeFile]);
 
     const handleDownloadAll = useCallback(() => {
         // Create a simple concatenated file for now
-        // TODO: Implement proper ZIP download
         const allContent = files
             .filter(f => f.type === 'file')
             .map(f => `// ===== ${f.name} =====\n${f.content}\n`)
@@ -72,6 +81,7 @@ export function CodeEditor() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+        toast.success('已下载全部代码');
     }, [files]);
 
     const handleEditorChange = useCallback((value: string | undefined) => {
@@ -90,6 +100,9 @@ export function CodeEditor() {
                     <div className="code-editor__title">
                         <Code2 size={16} />
                         <span>代码编辑器</span>
+                        {activeFileId && useProjectStore.getState().projectSource === 'history' && (
+                            <span className="code-editor__badge code-editor__badge--history">历史记录</span>
+                        )}
                     </div>
                     {hasFiles && (
                         <div className="code-editor__actions">
@@ -108,6 +121,15 @@ export function CodeEditor() {
                             >
                                 <Download size={14} />
                                 下载
+                            </button>
+                            <button
+                                className="code-editor__action-btn"
+                                onClick={handleSaveToFile}
+                                disabled={!activeFile}
+                                title="保存到指定位置"
+                            >
+                                <Save size={14} />
+                                另存为
                             </button>
                             {files.length > 1 && (
                                 <button className="code-editor__action-btn" onClick={handleDownloadAll}>

@@ -122,3 +122,19 @@ export interface HostGroup {
   createdAt: number;
   updatedAt: number;
 }
+
+// Generation history record
+export interface GenerationRecord {
+  id: string;
+  timestamp: number;
+  imagePreview?: string;     // Base64 or data URL of the image
+  generatedCode: string;     // The generated code
+  files?: FileNode[];        // For multi-file projects
+  mode: 'general' | 'easyform';
+  modelUsed: string;         // e.g., "gemini-2.0-flash"
+  promptSummary?: string;    // Brief description of what was generated
+  selectedApis?: string[];   // API names if EasyForm mode
+  inputTokens?: number;
+  outputTokens?: number;
+  duration?: number;         // Generation time in ms
+}

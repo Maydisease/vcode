@@ -9,9 +9,13 @@ interface ProjectStore {
     // Diff view state
     diffViewFileId: string | null;
 
+    // Source state
+    projectSource: 'generator' | 'history';
+
     // Actions
     setFiles: (files: FileNode[]) => void;
     addFile: (file: FileNode) => void;
+    setProjectSource: (source: 'generator' | 'history') => void;
     updateFileContent: (fileId: string, content: string) => void;
     deleteFile: (fileId: string) => void;
     setActiveFile: (fileId: string | null) => void;
@@ -85,6 +89,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     activeFileId: null,
     openTabs: [],
     diffViewFileId: null,
+    projectSource: 'generator',
 
     setFiles: (files) => {
         const allFileIds = getAllFileIds(files);
@@ -95,6 +100,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             openTabs: firstFileId ? [firstFileId] : [],
         });
     },
+
+    setProjectSource: (source) => set({ projectSource: source }),
 
     addFile: (file) =>
         set((state) => ({
@@ -249,14 +256,11 @@ export function parseMultiFileOutput(output: string): FileNode[] {
     }
 
     let match;
-    while ((match = fileRegex.exec(output)) !== null) {
-        const filePath = match[1].trim();
-        let content = match[2].trim();
-
+    // Helper to process match and add file
+    const addFileFromMatch = (fileName: string, content: string) => {
         // Remove markdown code block wrappers if present
         content = stripMarkdownCodeBlock(content);
 
-        const fileName = filePath.split('/').pop() || filePath;
         const extension = fileName.split('.').pop()?.toLowerCase() || '';
 
         // Determine language from extension
@@ -279,6 +283,41 @@ export function parseMultiFileOutput(output: string): FileNode[] {
             content,
             language: languageMap[extension] || 'plaintext',
         });
+    };
+
+    // Try standard format first
+    let hasMatches = false;
+    while ((match = fileRegex.exec(output)) !== null) {
+        hasMatches = true;
+        addFileFromMatch(match[1].trim(), match[2].trim());
+    }
+
+    // If no standard format matches found, try legacy format: // --- filename ---
+    if (!hasMatches) {
+        // This regex looks for: // --- filename --- (surrounded by newlines potentially)
+        // We use split to handle this easier, or a similar regex
+        // const legacyRegex = /.../g;
+
+        // Handle the first file if it doesn't have a separator (index.tsx case)
+        // But in useCodeGenerator, indexCode comes first without separator.
+        // generatedCode: indexCode + '\n\n// --- modal.tsx ---\n\n' + ...
+
+        // If the string contains "// --- ", we assume it is this format.
+        if (output.includes('// --- ')) {
+            const parts = output.split(/\/\/ --- (.+?) ---\n/);
+            // parts[0] is the first file content (index.tsx)
+            // parts[1] is filename1, parts[2] is content1, parts[3] is filename2...
+
+            if (parts[0] && parts[0].trim()) {
+                addFileFromMatch('index.tsx', parts[0].trim()); // Default name for first chunk
+            }
+
+            for (let i = 1; i < parts.length; i += 2) {
+                if (i + 1 < parts.length) {
+                    addFileFromMatch(parts[i].trim(), parts[i + 1].trim());
+                }
+            }
+        }
     }
 
     // If no files parsed, treat entire output as a single file

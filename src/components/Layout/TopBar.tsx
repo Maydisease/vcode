@@ -1,5 +1,5 @@
 import { useCallback, useState, useRef } from 'react';
-import { Upload, X, Settings, Sparkles, Code2, Play } from 'lucide-react';
+import { Upload, X, Settings, Sparkles, Code2, Play, History } from 'lucide-react';
 import { useGeneratorStore } from '../../stores/generatorStore';
 import { useCodeGenerator } from '../../hooks/useCodeGenerator';
 import { toast } from '../Toast/Toast';
@@ -8,9 +8,10 @@ import './TopBar.css';
 interface TopBarProps {
     onSettingsClick: () => void;
     onPreviewClick: () => void;
+    onHistoryClick: () => void;
 }
 
-export function TopBar({ onSettingsClick, onPreviewClick }: TopBarProps) {
+export function TopBar({ onSettingsClick, onPreviewClick, onHistoryClick }: TopBarProps) {
     const [isDragActive, setIsDragActive] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -152,6 +153,13 @@ export function TopBar({ onSettingsClick, onPreviewClick }: TopBarProps) {
                 >
                     <Play size={16} />
                     预览
+                </button>
+                <button
+                    className="top-bar__settings-btn"
+                    onClick={onHistoryClick}
+                    title="生成历史"
+                >
+                    <History size={20} />
                 </button>
                 <button
                     className="top-bar__settings-btn"
