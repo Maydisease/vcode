@@ -39,12 +39,16 @@
     font-weight: 600;
     font-size: 14px;
     color: var(--color-text-primary);
+    min-width: 0;
+    overflow: hidden;
 }
 
 .code-editor__actions {
     display: flex;
     align-items: center;
     gap: var(--spacing-sm);
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .code-editor__action-btn {

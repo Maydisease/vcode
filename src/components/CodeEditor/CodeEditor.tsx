@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import Editor, { BeforeMount } from '@monaco-editor/react';
-import { Code2, Copy, Check, Download, Package, Save } from 'lucide-react';
+import { Code2, Copy, Check, Download, Package, Save, History } from 'lucide-react';
 import { useProjectStore } from '../../stores/projectStore';
 import { FileTree } from '../FileTree/FileTree';
 import { EditorTabs } from '../EditorTabs/EditorTabs';
@@ -101,7 +101,9 @@ export function CodeEditor() {
                         <Code2 size={16} />
                         <span>代码编辑器</span>
                         {activeFileId && useProjectStore.getState().projectSource === 'history' && (
-                            <span className="code-editor__badge code-editor__badge--history">历史记录</span>
+                            <span className="code-editor__badge code-editor__badge--history" title="历史记录">
+                                <History size={12} />
+                            </span>
                         )}
                     </div>
                     {hasFiles && (

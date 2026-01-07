@@ -1,4 +1,4 @@
-import { useCallback, useState, useRef } from 'react';
+import { useCallback, useState, useRef, useEffect } from 'react';
 import { Upload, X, Settings, Sparkles, Code2, Play, History } from 'lucide-react';
 import { useGeneratorStore } from '../../stores/generatorStore';
 import { useCodeGenerator } from '../../hooks/useCodeGenerator';
@@ -18,6 +18,36 @@ export function TopBar({ onSettingsClick, onPreviewClick, onHistoryClick }: TopB
     const { currentImage, imagePreview, isGenerating, step } = useGeneratorStore();
     const { handleImageUpload, generateCode, generateEasyFormCode } = useCodeGenerator();
     const { reset } = useGeneratorStore();
+
+    // Global paste event listener for clipboard images
+    useEffect(() => {
+        const handlePaste = (e: ClipboardEvent) => {
+            const items = e.clipboardData?.items;
+            if (!items) return;
+
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                if (item.type.startsWith('image/')) {
+                    e.preventDefault();
+                    const file = item.getAsFile();
+                    if (file) {
+                        // Create a new file with a proper name
+                        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                        const extension = file.type.split('/')[1] || 'png';
+                        const namedFile = new File([file], `clipboard-${timestamp}.${extension}`, {
+                            type: file.type
+                        });
+                        handleImageUpload(namedFile);
+                        toast.success('已从剪贴板粘贴图片');
+                    }
+                    return;
+                }
+            }
+        };
+
+        document.addEventListener('paste', handlePaste);
+        return () => document.removeEventListener('paste', handlePaste);
+    }, [handleImageUpload]);
 
     const handleDragOver = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -105,7 +135,7 @@ export function TopBar({ onSettingsClick, onPreviewClick, onHistoryClick }: TopB
                     >
                         <Upload size={18} className="top-bar__dropzone-icon" />
                         <span className="top-bar__dropzone-text">
-                            点击或拖拽上传设计图
+                            点击、拖拽或粘贴设计图
                         </span>
                     </div>
                 ) : (
@@ -154,19 +184,20 @@ export function TopBar({ onSettingsClick, onPreviewClick, onHistoryClick }: TopB
                     <Play size={16} />
                     预览
                 </button>
+                <span className="top-bar__divider" />
                 <button
-                    className="top-bar__settings-btn"
+                    className="top-bar__icon-btn"
                     onClick={onHistoryClick}
                     title="生成历史"
                 >
-                    <History size={20} />
+                    <History size={18} />
                 </button>
                 <button
-                    className="top-bar__settings-btn"
+                    className="top-bar__icon-btn"
                     onClick={onSettingsClick}
                     title="设置"
                 >
-                    <Settings size={20} />
+                    <Settings size={18} />
                 </button>
             </div>
         </header>

@@ -138,3 +138,14 @@ export interface GenerationRecord {
   outputTokens?: number;
   duration?: number;         // Generation time in ms
 }
+
+export type TaskStatus = 'queued' | 'running' | 'completed' | 'failed';
+
+export interface TaskState {
+  id: string;
+  status: TaskStatus;
+  content: string;
+  error?: string;
+  createdAt: number;
+  updatedAt: number;
+}

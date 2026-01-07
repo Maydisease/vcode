@@ -276,8 +276,9 @@ export function WorkLog() {
             <div className="work-log__content" ref={contentRef}>
                 {logs.length === 0 ? (
                     <div className="work-log__empty">
-                        <FileText size={32} />
-                        <span>暂无日志</span>
+                        <FileText size={40} strokeWidth={1.5} />
+                        <span className="work-log__empty-title">暂无工作日志</span>
+                        <span className="work-log__empty-desc">操作记录将显示在这里</span>
                     </div>
                 ) : (
                     <div className="work-log__entries">

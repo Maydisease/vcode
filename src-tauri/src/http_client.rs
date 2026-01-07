@@ -1,6 +1,5 @@
 use lazy_static::lazy_static;
 use reqwest::Client;
-use serde::Serialize;
 use std::sync::{Arc, RwLock};
 
 lazy_static! {

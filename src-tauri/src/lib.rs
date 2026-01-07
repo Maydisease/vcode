@@ -1,10 +1,16 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use serde_json::Value;
 
+mod history;
 mod http_client;
 mod llm;
 mod server;
+mod tasks;
 mod tokenizer;
+
+use history::HistoryStore;
+use tasks::TaskManager;
+use tauri::Manager;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -48,6 +54,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .manage(TaskManager::new())
+        .manage(HistoryStore::new())
         .setup(|app| {
             let handle = app.handle().clone();
             // Start the static file server
@@ -56,6 +64,12 @@ pub fn run() {
             });
             // Initialize HTTP client
             http_client::init();
+
+            // Initialize history store
+            let history_store = app.state::<HistoryStore>();
+            if let Err(e) = history_store.init(&app.handle()) {
+                eprintln!("Failed to initialize history store: {}", e);
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -73,9 +87,17 @@ pub fn run() {
             llm::generate_code_openai,
             llm::generate_code_gemini,
             llm::parse_image_description,
+            llm::start_generation_task,
+            // Task commands
+            tasks::poll_task_status,
             // HTTP commands
             http_client::set_proxy_enabled,
-            http_client::get_proxy_enabled
+            http_client::get_proxy_enabled,
+            // History commands
+            history::save_history_record,
+            history::get_history,
+            history::delete_history_record,
+            history::clear_history
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

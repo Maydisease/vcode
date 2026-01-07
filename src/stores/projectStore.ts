@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { FileNode } from '../types';
 
 interface ProjectStore {
@@ -84,113 +85,125 @@ function getAllFileIds(files: FileNode[]): string[] {
     return ids;
 }
 
-export const useProjectStore = create<ProjectStore>((set, get) => ({
-    files: [],
-    activeFileId: null,
-    openTabs: [],
-    diffViewFileId: null,
-    projectSource: 'generator',
-
-    setFiles: (files) => {
-        const allFileIds = getAllFileIds(files);
-        const firstFileId = allFileIds[0] || null;
-        set({
-            files,
-            activeFileId: firstFileId,
-            openTabs: firstFileId ? [firstFileId] : [],
-        });
-    },
-
-    setProjectSource: (source) => set({ projectSource: source }),
-
-    addFile: (file) =>
-        set((state) => ({
-            files: [...state.files, file],
-        })),
-
-    updateFileContent: (fileId, content) =>
-        set((state) => ({
-            files: updateFileInTree(state.files, fileId, content),
-        })),
-
-    deleteFile: (fileId) =>
-        set((state) => {
-            const newFiles = deleteFileFromTree(state.files, fileId);
-            const newOpenTabs = state.openTabs.filter(id => id !== fileId);
-            const newActiveFileId = state.activeFileId === fileId
-                ? newOpenTabs[0] || null
-                : state.activeFileId;
-            return {
-                files: newFiles,
-                openTabs: newOpenTabs,
-                activeFileId: newActiveFileId,
-            };
-        }),
-
-    setActiveFile: (fileId) => set({ activeFileId: fileId }),
-
-    openTab: (fileId) =>
-        set((state) => {
-            if (state.openTabs.includes(fileId)) {
-                return { activeFileId: fileId };
-            }
-            return {
-                openTabs: [...state.openTabs, fileId],
-                activeFileId: fileId,
-            };
-        }),
-
-    closeTab: (fileId) =>
-        set((state) => {
-            const newOpenTabs = state.openTabs.filter(id => id !== fileId);
-            const newActiveFileId = state.activeFileId === fileId
-                ? newOpenTabs[newOpenTabs.length - 1] || null
-                : state.activeFileId;
-            return {
-                openTabs: newOpenTabs,
-                activeFileId: newActiveFileId,
-            };
-        }),
-
-    clearProject: () =>
-        set({
+export const useProjectStore = create<ProjectStore>()(
+    persist(
+        (set, get) => ({
             files: [],
             activeFileId: null,
             openTabs: [],
             diffViewFileId: null,
-        }),
+            projectSource: 'generator',
 
-    // Version management
-    addFileVersion: (fileId, label, content) =>
-        set((state) => ({
-            files: state.files.map((file) => {
-                if (file.id === fileId) {
-                    const newVersion = {
-                        label,
-                        content,
-                        timestamp: Date.now(),
-                    };
+            setFiles: (files) => {
+                const allFileIds = getAllFileIds(files);
+                const firstFileId = allFileIds[0] || null;
+                set({
+                    files,
+                    activeFileId: firstFileId,
+                    openTabs: firstFileId ? [firstFileId] : [],
+                });
+            },
+
+            setProjectSource: (source) => set({ projectSource: source }),
+
+            addFile: (file) =>
+                set((state) => ({
+                    files: [...state.files, file],
+                })),
+
+            updateFileContent: (fileId, content) =>
+                set((state) => ({
+                    files: updateFileInTree(state.files, fileId, content),
+                })),
+
+            deleteFile: (fileId) =>
+                set((state) => {
+                    const newFiles = deleteFileFromTree(state.files, fileId);
+                    const newOpenTabs = state.openTabs.filter(id => id !== fileId);
+                    const newActiveFileId = state.activeFileId === fileId
+                        ? newOpenTabs[0] || null
+                        : state.activeFileId;
                     return {
-                        ...file,
-                        versions: [...(file.versions || []), newVersion],
+                        files: newFiles,
+                        openTabs: newOpenTabs,
+                        activeFileId: newActiveFileId,
                     };
-                }
-                return file;
+                }),
+
+            setActiveFile: (fileId) => set({ activeFileId: fileId }),
+
+            openTab: (fileId) =>
+                set((state) => ({
+                    openTabs: state.openTabs.includes(fileId)
+                        ? state.openTabs
+                        : [...state.openTabs, fileId],
+                    activeFileId: fileId,
+                })),
+
+            closeTab: (fileId) =>
+                set((state) => {
+                    const newOpenTabs = state.openTabs.filter(id => id !== fileId);
+                    const newActiveFileId = state.activeFileId === fileId
+                        ? newOpenTabs[newOpenTabs.length - 1] || null
+                        : state.activeFileId;
+                    return {
+                        openTabs: newOpenTabs,
+                        activeFileId: newActiveFileId,
+                    };
+                }),
+
+            clearProject: () =>
+                set({
+                    files: [],
+                    activeFileId: null,
+                    openTabs: [],
+                    diffViewFileId: null,
+                    projectSource: 'generator',
+                }),
+
+            // Version management
+            addFileVersion: (fileId, label, content) =>
+                set((state) => ({
+                    files: state.files.map(file => {
+                        if (file.id === fileId) {
+                            const newVersion = {
+                                id: `v-${Date.now()}`,
+                                label,
+                                content,
+                                timestamp: Date.now(),
+                            };
+                            return {
+                                ...file,
+                                versions: [...(file.versions || []), newVersion],
+                            };
+                        }
+                        return file;
+                    }),
+                })),
+
+            openDiffView: (fileId) => set({ diffViewFileId: fileId }),
+
+            closeDiffView: () => set({ diffViewFileId: null }),
+
+            getFileById: (fileId) => findFileById(get().files, fileId),
+
+            getActiveFile: () => {
+                const { activeFileId, files } = get();
+                if (!activeFileId) return undefined;
+                return findFileById(files, activeFileId);
+            },
+        }),
+        {
+            name: 'vcode-project',
+            partialize: (state) => ({
+                files: state.files,
+                activeFileId: state.activeFileId,
+                openTabs: state.openTabs,
+                projectSource: state.projectSource,
             }),
-        })),
-
-    openDiffView: (fileId) => set({ diffViewFileId: fileId }),
-
-    closeDiffView: () => set({ diffViewFileId: null }),
-
-    getFileById: (fileId) => findFileById(get().files, fileId),
-
-    getActiveFile: () => {
-        const { activeFileId, files } = get();
-        if (!activeFileId) return undefined;
-        return findFileById(files, activeFileId);
-    },
-}));
+        }
+    )
+);
 
 // Parser for multi-file AI output
 export function parseMultiFileOutput(output: string): FileNode[] {

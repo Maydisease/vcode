@@ -12,9 +12,8 @@
 }
 
 .main-layout__left {
-    width: 360px;
-    min-width: 280px;
-    max-width: 480px;
+    width: 320px;
+    min-width: 320px;
     border-right: 1px solid var(--color-border);
     display: flex;
     flex-direction: column;
@@ -23,9 +22,11 @@
 
 .main-layout__right {
     flex: 1;
+    min-width: 400px;
     display: flex;
     flex-direction: column;
     background-color: var(--color-card);
+    overflow: hidden;
 }
 
 /* Resize handle */

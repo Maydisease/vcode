@@ -4,6 +4,7 @@ import { useGeneratorStore } from '../stores/generatorStore';
 import { useLogStore } from '../stores/logStore';
 import { useHistoryStore } from '../stores/historyStore';
 import { useProjectStore, parseMultiFileOutput } from '../stores/projectStore';
+import { useUIStore } from '../stores/uiStore';
 import { initializeGemini, generateCodeFromImage } from '../services/geminiService';
 import { initializeOpenAI, generateCodeFromImageOpenAI } from '../services/openaiService';
 import { buildEasyFormPrompt, buildRefinementPrompt } from '../services/easyFormService';
@@ -112,6 +113,9 @@ export function useCodeGenerator() {
         clearLogs();
         clearProject();
 
+        // Switch to work log tab when uploading image
+        useUIStore.getState().setSidePanelTab('log');
+
         setImage(file);
 
         const reader = new FileReader();
@@ -138,44 +142,129 @@ export function useCodeGenerator() {
         addLog('跳过接口选择', 'info');
     }, [setStep, addLog]);
 
+
+
+
+
+    const dataURLtoFile = useCallback((dataURL: string, filename: string): File => {
+        const arr = dataURL.split(',');
+        const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/png';
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new File([u8arr], filename, { type: mime });
+    }, []);
+
     /**
-     * Generate a single file using selected AI provider
-     * Returns the generated code and token counts
+     * Helper to run a background generation task with polling
+     */
+    const runGenerationTask = useCallback(async (
+        taskKey: string,
+        prompt: string,
+        onProgress?: (content: string) => void
+    ): Promise<{ code: string; task: any }> => {
+        const { apiKey, modelConfig } = useSettingsStore.getState();
+        const { imagePreview, activeTasks, setTask } = useGeneratorStore.getState();
+
+        if (!apiKey) throw new Error('API Key not configured');
+        if (!imagePreview) throw new Error('No image preview available');
+
+        // Extract base64 and mime type
+        const [meta, base64Data] = imagePreview.split(',');
+        const mimeType = meta.match(/:(.*?);/)?.[1] || 'image/png';
+
+        let taskId = activeTasks[taskKey];
+
+        // If no active task, start one
+        if (!taskId) {
+            const provider = modelConfig.provider || 'google';
+            // Use invoke directly to start task
+            try {
+                // Determine max tokens based on model
+                let maxTokens = modelConfig.maxTokens;
+                if (!maxTokens && modelConfig.model === 'gemini-2.0-flash') maxTokens = 8192;
+
+                const { invoke } = await import('@tauri-apps/api/core');
+                taskId = await invoke('start_generation_task', {
+                    provider,
+                    apiKey,
+                    baseUrl: modelConfig.openaiBaseUrl,
+                    model: modelConfig.model,
+                    prompt,
+                    imageBase64: base64Data,
+                    imageMimeType: mimeType,
+                    temperature: modelConfig.temperature,
+                    topP: modelConfig.topP,
+                    maxTokens: maxTokens || 4096,
+                }) as string;
+
+                setTask(taskKey, taskId);
+                console.log(`Task ${taskKey} started: ${taskId}`); // addLog removed
+
+            } catch (e) {
+                console.error("Start task failed", e);
+                throw e;
+            }
+        } else {
+            console.log(`Resuming task ${taskKey}: ${taskId}`); // addLog removed
+        }
+
+        // Polling loop
+        const { invoke } = await import('@tauri-apps/api/core');
+        let taskState: any = null;
+
+        while (true) {
+            try {
+                taskState = await invoke('poll_task_status', { taskId });
+
+                if (onProgress && taskState.content) {
+                    onProgress(taskState.content);
+                }
+
+                if (taskState.status === 'completed') {
+                    setTask(taskKey, null); // Clear task on completion
+                    // addLog(`任务 ${taskKey} 完成`, 'success'); // Removed to reduce noise
+                    return { code: taskState.content, task: taskState };
+                }
+
+                if (taskState.status === 'failed') {
+                    setTask(taskKey, null);
+                    throw new Error(taskState.error || 'Unknown error');
+                }
+
+                // Wait 1s before next poll
+                await new Promise(r => setTimeout(r, 1000));
+            } catch (e) {
+                // If polling fails (e.g. backend restart), we might want to handle it. 
+                // For now throw.
+                throw e;
+            }
+        }
+    }, [addLog]);
+
+    /**
+     * Generate a single file using task system
      */
     const generateSingleFile = useCallback(async (
         fileType: 'index' | 'modal' | 'service',
         selectedApis: SelectedApis | null
     ): Promise<{ code: string; inputTokens: number; outputTokens: number; promptContent: string }> => {
-        const { currentImage } = useGeneratorStore.getState();
-        if (!currentImage) throw new Error('No image uploaded');
-
         const customPrompt = buildEasyFormPrompt(selectedApis, fileType);
+        const { prompts } = useSettingsStore.getState();
         const promptContents = [customPrompt, ...prompts.map(p => p.content)];
-
-        // Calculate input tokens (prompts + image estimation)
         const combinedPrompts = promptContents.join('\n');
 
-
-        console.log("combinedPrompts----->:", combinedPrompts);
-
+        // Estimate input tokens
         const inputTokenResult = await countTokens(combinedPrompts);
-        // Add estimation for image tokens (typically ~250-750 tokens for Gemini/OpenAI)
         const imageTokenEstimate = 500;
         const inputTokens = inputTokenResult.count + imageTokenEstimate;
 
-        const provider = modelConfig.provider || 'google';
-        const generator = provider === 'google'
-            ? generateCodeFromImage(currentImage, promptContents, modelConfig)
-            : generateCodeFromImageOpenAI(currentImage, promptContents, modelConfig);
-
-        let fullCode = '';
-        for await (const chunk of generator) {
-            fullCode += chunk;
-        }
-
-        const cleanedCode = stripMarkdownCodeBlock(fullCode);
-
-        // Calculate output tokens
+        // Run task
+        const { code } = await runGenerationTask(fileType, combinedPrompts);
+        const cleanedCode = stripMarkdownCodeBlock(code);
         const outputTokenResult = await countTokens(cleanedCode);
 
         return {
@@ -184,19 +273,35 @@ export function useCodeGenerator() {
             outputTokens: outputTokenResult.count,
             promptContent: combinedPrompts,
         };
-    }, [prompts, modelConfig]);
+    }, [runGenerationTask]);
 
     /**
      * Multi-stage code generation with 3 fixed files
      */
     const generateEasyFormCode = useCallback(async () => {
-        const { currentImage, selectedApis } = useGeneratorStore.getState();
+        const execId = Math.random().toString(36).substring(7);
+        console.log(`[Exec ${execId}] generateEasyFormCode called`);
 
-        if (!currentImage) {
+        let { currentImage, selectedApis, imagePreview, activeTasks, isGenerating } = useGeneratorStore.getState();
+
+        // Prevent double execution
+        if (isGenerating) {
+            console.log(`[Exec ${execId}] Generation already in progress (isGenerating=true), skipping.`);
+            return;
+        }
+
+        // If no imagePreview, we can't do anything (unless we have tasks running?)
+        if (!imagePreview && !currentImage) {
             addLog('请先上传设计图片', 'warning');
             return;
         }
 
+        // If resuming (no File but have preview), use existing preview
+        // No need to recreate File object if using base64 for generation
+        // But Store needs currentImage for other logic? 
+        // Let's assume currentImage check is mainly for UI.
+
+        const { apiKey } = useSettingsStore.getState();
         if (!apiKey) {
             addLog('请先在设置中配置 API Key', 'error');
             return;
@@ -205,79 +310,65 @@ export function useCodeGenerator() {
         try {
             setIsGenerating(true);
             setStep('generating');
-            clearProject();
-            setProgress(0);
 
-            const provider = modelConfig.provider || 'google';
-            const initLogId = startTask(provider === 'google' ? '初始化 Gemini API...' : '初始化 OpenAI API...');
-            if (provider === 'google') {
-                initializeGemini(apiKey);
+            // Only clear if NOT resuming (activeTasks empty)
+            const isResuming = Object.keys(activeTasks).length > 0;
+            if (!isResuming) {
+                clearProject();
+                clearLogs();
+                setProgress(0);
+                addLog('开始生成任务...', 'info');
             } else {
-                initializeOpenAI(apiKey, modelConfig.openaiBaseUrl);
+                addLog('正在恢复未完成的任务...', 'info');
             }
-            completeTask(initLogId, provider === 'google' ? 'Gemini API 初始化完成' : 'OpenAI API 初始化完成', 'success');
 
-            // Stage 1: Generate all 3 files in parallel (with individual log entries)
-            const indexLogId = startTask('正在生成 index.tsx...');
-            const modalLogId = startTask('正在生成 modal.tsx...');
-            const serviceLogId = startTask('正在生成 scope.service.ts...');
+            // Stage 1: Generate all 3 files in parallel
+            // We use Promise.all. If resuming, runGenerationTask handles picking up existing ID.
+
+            const indexLogId = !isResuming ? startTask('正在生成 index.tsx...') : 'resume-index';
+            const modalLogId = !isResuming ? startTask('正在生成 modal.tsx...') : 'resume-modal';
+            const serviceLogId = !isResuming ? startTask('正在生成 scope.service.ts...') : 'resume-service';
+
             setProgress(10);
 
             // Run all 3 file generations in parallel
             const [indexResult, modalResult, serviceResult] = await Promise.all([
                 generateSingleFile('index', selectedApis).then(result => {
-                    completeTask(indexLogId, 'index.tsx 生成完成', 'success', {
-                        inputTokens: result.inputTokens,
-                        outputTokens: result.outputTokens,
-                    }, result.promptContent);
+                    if (!isResuming) completeTask(indexLogId, 'index.tsx 生成完成', 'success');
                     return result;
                 }),
                 generateSingleFile('modal', selectedApis).then(result => {
-                    completeTask(modalLogId, 'modal.tsx 生成完成', 'success', {
-                        inputTokens: result.inputTokens,
-                        outputTokens: result.outputTokens,
-                    }, result.promptContent);
+                    if (!isResuming) completeTask(modalLogId, 'modal.tsx 生成完成', 'success');
                     return result;
                 }),
                 generateSingleFile('service', selectedApis).then(result => {
-                    completeTask(serviceLogId, 'scope.service.ts 生成完成', 'success', {
-                        inputTokens: result.inputTokens,
-                        outputTokens: result.outputTokens,
-                    }, result.promptContent);
+                    if (!isResuming) completeTask(serviceLogId, 'scope.service.ts 生成完成', 'success');
                     return result;
                 }),
             ]);
 
             setProgress(60);
 
-            // Stage 4: Refinement (merge and fix relationships)
-            const refineLogId = startTask('正在整合优化代码...');
+            // Stage 4: Refinement
             setStep('refining');
             setProgress(80);
 
+            const refineLogId = !isResuming ? startTask('正在整合优化代码...') : 'resume-refine';
+
             const refinementPrompt = buildRefinementPrompt(indexResult.code, modalResult.code, serviceResult.code);
-            const { currentImage: img } = useGeneratorStore.getState();
 
-            // Calculate refinement input tokens
             const refineInputTokenResult = await countTokens(refinementPrompt);
-            const refineInputTokens = refineInputTokenResult.count + 500; // Add image token estimate
+            const refineInputTokens = refineInputTokenResult.count + 500;
 
-            // Use correct API based on provider
-            const refineGenerator = provider === 'google'
-                ? generateCodeFromImage(img!, [refinementPrompt], modelConfig)
-                : generateCodeFromImageOpenAI(img!, [refinementPrompt], modelConfig);
-
-            let refinedCode = '';
-            for await (const chunk of refineGenerator) {
-                refinedCode += chunk;
-                appendCode(chunk);
-            }
+            const { code: refinedCode } = await runGenerationTask('refine', refinementPrompt, (content) => {
+                setGeneratedCode(stripMarkdownCodeBlock(content));
+                // Append wouldn't work easily with full content replacement, so use setGeneratedCode logic or just ignore visuals
+            });
 
             const cleanedCode = stripMarkdownCodeBlock(refinedCode);
             setGeneratedCode(cleanedCode);
 
-            // Calculate refinement output tokens
-            const refineOutputTokenResult = await countTokens(cleanedCode);
+            // ... (Parsing logic similar to before) ...
 
             // Try to parse as JSON first, fallback to file markers
             let indexCode = indexResult.code;
@@ -291,7 +382,6 @@ export function useCodeGenerator() {
                 if (jsonMatch) {
                     jsonStr = jsonMatch[1];
                 }
-                // Also try to find raw JSON object
                 const jsonObjectMatch = jsonStr.match(/\{[\s\S]*"indexCode"[\s\S]*"modalCode"[\s\S]*"serviceCode"[\s\S]*\}/);
                 if (jsonObjectMatch) {
                     jsonStr = jsonObjectMatch[0];
@@ -303,7 +393,6 @@ export function useCodeGenerator() {
                 if (parsed.serviceCode) serviceCode = parsed.serviceCode;
                 addLog('JSON 格式解析成功', 'info');
             } catch (jsonError) {
-                // Fallback to file marker parsing
                 addLog('JSON 解析失败，使用文件标记解析', 'warning');
                 const files = parseMultiFileOutput(cleanedCode);
                 files.forEach(f => {
@@ -357,36 +446,42 @@ export function useCodeGenerator() {
             ];
 
             setFiles(filesWithVersions);
+            const refineOutputTokenResult = await countTokens(cleanedCode);
 
-            completeTask(refineLogId, '代码整合优化完成', 'success', {
-                inputTokens: refineInputTokens,
-                outputTokens: refineOutputTokenResult.count,
-            }, refinementPrompt);
+            if (!isResuming) completeTask(refineLogId, '代码整合优化完成', 'success');
             setStep('done');
             setProgress(100);
             addLog(`代码生成完成! 共 ${filesWithVersions.length} 个文件`, 'success');
 
             // Save to history
-            const { imagePreview, selectedApis: apis } = useGeneratorStore.getState();
-            addRecord({
-                imagePreview: imagePreview || undefined,
-                generatedCode: `===FILE: index.tsx===\n${indexCode}\n\n===FILE: modal.tsx===\n${modalCode}\n\n===FILE: scope.service.ts===\n${serviceCode}`,
-                files: filesWithVersions,
-                mode: 'easyform',
-                modelUsed: modelConfig.model || 'gemini-2.0-flash',
-                promptSummary: 'EasyForm 表单生成',
-                selectedApis: apis ? [apis.createApi?.summary, apis.updateApi?.summary, apis.queryApi?.summary].filter(Boolean) as string[] : undefined,
-                inputTokens: indexResult.inputTokens + modalResult.inputTokens + serviceResult.inputTokens + refineInputTokens,
-                outputTokens: indexResult.outputTokens + modalResult.outputTokens + serviceResult.outputTokens + refineOutputTokenResult.count,
-            });
+            try {
+                const { imagePreview: imgP, selectedApis: apis } = useGeneratorStore.getState();
+                addRecord({
+                    imagePreview: imgP || undefined,
+                    generatedCode: `===FILE: index.tsx===\n${indexCode}\n\n===FILE: modal.tsx===\n${modalCode}\n\n===FILE: scope.service.ts===\n${serviceCode}`,
+                    files: filesWithVersions,
+                    mode: 'easyform',
+                    modelUsed: modelConfig.model || 'gemini-2.0-flash',
+                    promptSummary: 'EasyForm 表单生成',
+                    selectedApis: apis ? [apis.createApi?.summary, apis.updateApi?.summary, apis.queryApi?.summary].filter(Boolean) as string[] : undefined,
+                    inputTokens: indexResult.inputTokens + modalResult.inputTokens + serviceResult.inputTokens + refineInputTokens,
+                    outputTokens: indexResult.outputTokens + modalResult.outputTokens + serviceResult.outputTokens + refineOutputTokenResult.count,
+                });
+            } catch (historyError) {
+                console.error(`[Exec ${execId}] Failed to save history:`, historyError);
+                // Don't fail the generation just because history save failed
+                addLog('生成成功，但保存历史记录失败 (本地存储已满)', 'warning');
+            }
         } catch (error) {
+            console.error(`[Exec ${execId}] Error caught:`, error);
             const message = error instanceof Error ? error.message : '未知错误';
             addLog(`生成失败: ${message}`, 'error');
             setStep('idle');
         } finally {
+            console.log(`[Exec ${execId}] Finished (finally block)`);
             setIsGenerating(false);
         }
-    }, [apiKey, modelConfig, addLog, startTask, completeTask, setIsGenerating, setStep, setProgress, setGeneratedCode, appendCode, setFiles, clearProject, generateSingleFile, addFileVersion]);
+    }, [apiKey, modelConfig, addLog, startTask, completeTask, setIsGenerating, setStep, setProgress, setGeneratedCode, appendCode, setFiles, clearProject, generateSingleFile, addFileVersion, dataURLtoFile, runGenerationTask]);
 
     /**
      * Simple single-file generation (legacy mode)

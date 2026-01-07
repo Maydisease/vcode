@@ -13,6 +13,7 @@ import { ToastContainer } from './components/Toast/Toast';
 import { useGeneratorStore } from './stores/generatorStore';
 import { useCodeGenerator } from './hooks/useCodeGenerator';
 import { useProjectStore, parseMultiFileOutput } from './stores/projectStore';
+import { useHistoryStore } from './stores/historyStore'; // Added import
 import './App.css';
 import './styles/global.css';
 
@@ -43,8 +44,9 @@ function ApiSelectorOverlay() {
 function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [viewMode, setViewMode] = useState<'editor' | 'preview'>('editor');
-  const { setGeneratedCode } = useGeneratorStore();
+  const { setGeneratedCode, needsResume, setNeedsResume, imagePreview, selectedApis } = useGeneratorStore();
   const { setFiles } = useProjectStore();
+  const { generateEasyFormCode } = useCodeGenerator();
 
   useEffect(() => {
     const updateTitle = async () => {
@@ -57,7 +59,27 @@ function App() {
       }
     };
     updateTitle();
+
+    // Initialize history from backend
+    useHistoryStore.getState().fetchHistory();
+
   }, []);
+
+  // Auto-resume generation on page load if there are pending tasks
+  useEffect(() => {
+    if (needsResume && imagePreview) {
+      // Clear the resume flag first to prevent infinite loop
+      setNeedsResume(false);
+
+      // Small delay to ensure all stores are hydrated
+      const timer = setTimeout(() => {
+        console.log('Resuming interrupted generation...');
+        generateEasyFormCode();
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [needsResume, imagePreview, selectedApis, setNeedsResume, generateEasyFormCode]);
 
   const handleRestoreCode = (code: string) => {
     setGeneratedCode(code);

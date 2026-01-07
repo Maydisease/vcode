@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Trash2, FileText, History } from 'lucide-react';
 import { WorkLog } from '../WorkLog/WorkLog';
 import { HistoryList } from './HistoryList';
@@ -6,6 +5,7 @@ import { useProjectStore } from '../../stores/projectStore';
 import { useGeneratorStore } from '../../stores/generatorStore';
 import { useLogStore } from '../../stores/logStore';
 import { useHistoryStore } from '../../stores/historyStore';
+import { useUIStore } from '../../stores/uiStore';
 import './SidePanel.css';
 
 interface SidePanelProps {
@@ -15,7 +15,7 @@ interface SidePanelProps {
 type TabId = 'log' | 'history';
 
 export function SidePanel({ onRestoreCode }: SidePanelProps) {
-    const [activeTab, setActiveTab] = useState<TabId>('log');
+    const { sidePanelTab: activeTab, setSidePanelTab: setActiveTab } = useUIStore();
     const { logs, clearLogs } = useLogStore();
     const { records, clearHistory } = useHistoryStore();
 

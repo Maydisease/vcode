@@ -49,8 +49,25 @@
     align-items: center;
     justify-content: center;
     height: 100%;
+    gap: 8px;
+    padding: var(--spacing-xl);
     color: var(--color-text-muted);
-    gap: var(--spacing-sm);
+}
+
+.work-log__empty svg {
+    opacity: 0.5;
+    margin-bottom: 4px;
+}
+
+.work-log__empty-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+}
+
+.work-log__empty-desc {
+    font-size: 12px;
+    color: var(--color-text-muted);
 }
 
 .work-log__entries {

@@ -42,8 +42,9 @@ export function HistoryList({ onRestore }: HistoryListProps) {
             <div className="history-list__content">
                 {records.length === 0 ? (
                     <div className="history-list__empty">
-                        <History size={32} />
-                        <span>暂无历史记录</span>
+                        <History size={40} strokeWidth={1.5} />
+                        <span className="history-list__empty-title">暂无历史记录</span>
+                        <span className="history-list__empty-desc">生成代码后会自动保存</span>
                     </div>
                 ) : (
                     <div className="history-list__items">

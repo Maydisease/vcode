@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { FolderOpen, FileCode, FileJson, FileType, X, Plus, GitCompare } from 'lucide-react';
+import { FolderOpen, FileCode, FileJson, FileType, X, Plus, GitCompare, History } from 'lucide-react';
 import { useProjectStore } from '../../stores/projectStore';
 import type { FileNode } from '../../types';
 import './FileTree.css';
@@ -168,7 +168,9 @@ export function FileTree() {
                 <span className="file-tree__title">
                     文件
                     {files.length > 0 && projectSource === 'history' && (
-                        <span className="file-tree__badge file-tree__badge--history">历史记录</span>
+                        <span className="file-tree__badge file-tree__badge--history" title="历史记录">
+                            <History size={12} />
+                        </span>
                     )}
                 </span>
                 <div className="file-tree__actions">
@@ -184,8 +186,9 @@ export function FileTree() {
             <div className="file-tree__content">
                 {files.length === 0 ? (
                     <div className="file-tree__empty">
-                        <p>暂无文件</p>
-                        <p>生成代码后文件将显示在这里</p>
+                        <FolderOpen size={40} strokeWidth={1.5} />
+                        <span className="file-tree__empty-title">暂无文件</span>
+                        <span className="file-tree__empty-desc">生成代码后文件将显示在这里</span>
                     </div>
                 ) : (
                     files.map((file) => (
