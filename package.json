@@ -1,13 +1,14 @@
 {
   "name": "vcode",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.5",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "release": "node scripts/release.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
