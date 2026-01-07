@@ -182,8 +182,8 @@ async fn handle_proxy_request(
         println!("[Proxy] Params: {}", q);
     }
 
-    // Get dynamic global client
-    let client = crate::http_client::get_client();
+    // Get client that bypasses system proxy (force no_proxy for internal forwarding)
+    let client = crate::http_client::get_direct_client();
 
     let mut proxy_req = match method {
         Method::GET => client.get(&target_url),

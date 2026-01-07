@@ -57,6 +57,8 @@
     border-radius: var(--radius-md);
     font-size: 14px;
     font-family: var(--font-mono);
+    background-color: var(--color-bg);
+    color: var(--color-text-primary);
 }
 
 .model-config__input:focus {
@@ -113,6 +115,8 @@
     resize: vertical;
     min-height: 60px;
     word-break: break-all;
+    background-color: var(--color-bg);
+    color: var(--color-text-primary);
 }
 
 .model-config__textarea:focus {

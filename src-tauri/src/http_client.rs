@@ -6,6 +6,7 @@ use std::sync::{Arc, RwLock};
 lazy_static! {
     static ref USE_SYSTEM_PROXY: Arc<RwLock<bool>> = Arc::new(RwLock::new(true)); // Default to enabled (use system proxy)
     static ref GLOBAL_CLIENT: Arc<RwLock<Option<Client>>> = Arc::new(RwLock::new(None));
+    static ref DIRECT_CLIENT: Client = build_client(false); // Client that always bypasses proxy
 }
 
 /// Helper to build a client based on current settings
@@ -34,6 +35,11 @@ pub fn get_client() -> Client {
     }
 
     GLOBAL_CLIENT.read().unwrap().as_ref().unwrap().clone()
+}
+
+/// Get a client that strictly bypasses any system proxy (no_proxy)
+pub fn get_direct_client() -> Client {
+    DIRECT_CLIENT.clone()
 }
 
 #[tauri::command]

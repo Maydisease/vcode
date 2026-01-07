@@ -18,7 +18,7 @@ async fn fetch_apifox_openapi(project_id: String, token: String) -> Result<Value
         project_id
     );
 
-    let client = http_client::get_client();
+    let client = http_client::get_direct_client();
 
     let response = client
         .post(&url)
