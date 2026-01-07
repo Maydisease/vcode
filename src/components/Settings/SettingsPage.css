@@ -37,6 +37,16 @@
     color: var(--color-text-primary);
 }
 
+.settings-page__version {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-text-tertiary);
+    background-color: var(--color-bg-secondary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--color-border);
+}
+
 .settings-page__content {
     display: flex;
     flex: 1;

@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowLeft, FileText, Key, Sliders, Zap, Globe, Bookmark, Network, Wifi } from 'lucide-react';
+import { getVersion } from '@tauri-apps/api/app';
 import { PromptManager } from './PromptManager';
 import { ModelConfig } from './ModelConfig';
 import { ApifoxConfig } from './ApifoxConfig';
@@ -18,6 +19,11 @@ interface SettingsPageProps {
 
 export function SettingsPage({ onBack }: SettingsPageProps) {
     const [activeTab, setActiveTab] = useState<SettingsTab>('prompts');
+    const [version, setVersion] = useState<string>('');
+
+    useEffect(() => {
+        getVersion().then(setVersion).catch(console.error);
+    }, []);
 
     const renderContent = () => {
         switch (activeTab) {
@@ -48,7 +54,10 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
                     <ArrowLeft size={18} />
                     返回
                 </button>
-                <h1 className="settings-page__title">系统设置</h1>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <h1 className="settings-page__title">系统设置</h1>
+                    {version && <span className="settings-page__version">v{version}</span>}
+                </div>
             </header>
 
             <div className="settings-page__content">

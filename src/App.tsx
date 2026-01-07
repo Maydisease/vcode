@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { getVersion } from '@tauri-apps/api/app';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { MainLayout } from './components/Layout/MainLayout';
 import { TopBar } from './components/Layout/TopBar';
 import { StatusBar } from './components/Layout/StatusBar';
@@ -43,6 +45,19 @@ function App() {
   const [viewMode, setViewMode] = useState<'editor' | 'preview'>('editor');
   const { setGeneratedCode } = useGeneratorStore();
   const { setFiles } = useProjectStore();
+
+  useEffect(() => {
+    const updateTitle = async () => {
+      try {
+        const version = await getVersion();
+        const appWindow = getCurrentWindow();
+        await appWindow.setTitle(`vcode v${version}`);
+      } catch (error) {
+        console.error('Failed to set window title:', error);
+      }
+    };
+    updateTitle();
+  }, []);
 
   const handleRestoreCode = (code: string) => {
     setGeneratedCode(code);
