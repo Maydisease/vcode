@@ -68,7 +68,7 @@ jobs:
             - **Windows**: 下载 `.msi` 或 `.exe` 文件
             - **macOS**: 下载 `.dmg` 文件
             - **Linux**: 下载 `.AppImage` 或 `.deb` 文件
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
 
