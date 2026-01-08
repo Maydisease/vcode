@@ -322,7 +322,7 @@ export function CodeEditor() {
                                     timeout = setTimeout(updateFeatures, 500);
                                 };
 
-                                const changeDisposable = editor.onDidChangeModelContent(() => {
+                                editor.onDidChangeModelContent(() => {
                                     debounceUpdate();
                                 });
 
@@ -333,7 +333,7 @@ export function CodeEditor() {
                                     codeLensProviderRef.current.dispose();
                                 }
                                 codeLensProviderRef.current = monaco.languages.registerCodeLensProvider('typescript', {
-                                    provideCodeLenses: async (model: Monaco.editor.ITextModel, token: Monaco.CancellationToken) => {
+                                    provideCodeLenses: async (model: Monaco.editor.ITextModel, _token: Monaco.CancellationToken) => {
                                         if (model.uri.toString() !== editor.getModel()?.uri.toString()) return null;
                                         const code = model.getValue();
                                         const { findAllFormConfigs } = await import('../../utils/astUtils');
@@ -356,7 +356,7 @@ export function CodeEditor() {
                                             dispose: () => { }
                                         };
                                     },
-                                    resolveCodeLens: (model: any, codeLens: any) => codeLens
+                                    resolveCodeLens: (_model: any, codeLens: any) => codeLens
                                 });
                             }}
                             theme="vs-light"

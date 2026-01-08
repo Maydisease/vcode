@@ -156,7 +156,7 @@ export const useProjectStore = create<ProjectStore>()(
                 }),
 
             closeOtherTabs: (fileId) =>
-                set((state) => ({
+                set(() => ({
                     openTabs: [fileId],
                     activeFileId: fileId,
                 })),
