@@ -119,3 +119,25 @@
     color: var(--color-warning);
     border: 1px solid var(--color-warning-border);
 }
+
+/* FormConfig Highlighting */
+.form-config-highlight {
+    background-color: rgba(253, 224, 71, 0.2) !important;
+    border-bottom: 2px solid rgba(253, 224, 71, 0.5);
+}
+
+/* CodeLens Link Style */
+.form-config-codelens {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: #6366f1 !important;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none !important;
+}
+
+.form-config-codelens:hover {
+    text-decoration: underline !important;
+}

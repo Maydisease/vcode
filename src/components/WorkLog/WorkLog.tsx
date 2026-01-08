@@ -198,7 +198,7 @@ function LogEntryItem({ log, onImageClick, onPromptClick }: { log: LogEntry; onI
 
 // Total duration and token display
 function TotalSummary() {
-    const { taskStartTime, getTotalTokens } = useLogStore();
+    const { taskStartTime, taskEndTime, getTotalTokens } = useLogStore();
     const { isGenerating } = useGeneratorStore();
     const [elapsed, setElapsed] = useState(0);
 
@@ -208,15 +208,23 @@ function TotalSummary() {
             return;
         }
 
+        // If task is complete (has end time), use fixed duration
+        if (taskEndTime) {
+            setElapsed(taskEndTime - taskStartTime);
+            return; // No interval needed
+        }
+
+        // If still generating, update in real-time
         if (isGenerating) {
             const interval = setInterval(() => {
                 setElapsed(Date.now() - taskStartTime);
             }, 100);
             return () => clearInterval(interval);
         } else {
+            // Not generating but no end time yet - calculate current
             setElapsed(Date.now() - taskStartTime);
         }
-    }, [taskStartTime, isGenerating]);
+    }, [taskStartTime, taskEndTime, isGenerating]);
 
     const totalTokens = getTotalTokens();
     const hasTokens = totalTokens.input > 0 || totalTokens.output > 0;

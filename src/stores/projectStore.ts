@@ -22,6 +22,9 @@ interface ProjectStore {
     setActiveFile: (fileId: string | null) => void;
     openTab: (fileId: string) => void;
     closeTab: (fileId: string) => void;
+    closeOtherTabs: (fileId: string) => void;
+    closeAllTabs: () => void;
+    closeTabsToRight: (fileId: string) => void;
     clearProject: () => void;
 
     // Version management
@@ -149,6 +152,32 @@ export const useProjectStore = create<ProjectStore>()(
                     return {
                         openTabs: newOpenTabs,
                         activeFileId: newActiveFileId,
+                    };
+                }),
+
+            closeOtherTabs: (fileId) =>
+                set((state) => ({
+                    openTabs: [fileId],
+                    activeFileId: fileId,
+                })),
+
+            closeAllTabs: () =>
+                set({
+                    openTabs: [],
+                    activeFileId: null,
+                }),
+
+            closeTabsToRight: (fileId) =>
+                set((state) => {
+                    const index = state.openTabs.indexOf(fileId);
+                    if (index === -1) return state;
+                    const newOpenTabs = state.openTabs.slice(0, index + 1);
+                    return {
+                        openTabs: newOpenTabs,
+                        // If active file was to the right, switch to the current file
+                        activeFileId: newOpenTabs.includes(state.activeFileId || '')
+                            ? state.activeFileId
+                            : fileId,
                     };
                 }),
 

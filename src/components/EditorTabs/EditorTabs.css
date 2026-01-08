@@ -88,3 +88,101 @@
     color: var(--color-text-muted);
     font-size: 12px;
 }
+
+/* Context Menu - Premium Design */
+.editor-tabs__context-menu {
+    position: fixed;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.98) 100%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    border-radius: 10px;
+    box-shadow:
+        0 4px 6px -1px rgba(0, 0, 0, 0.08),
+        0 10px 20px -2px rgba(0, 0, 0, 0.1),
+        0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+    padding: 6px;
+    min-width: 200px;
+    z-index: 9999;
+    animation: contextMenuSlideIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.editor-tabs__menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 14px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 450;
+    color: #334155;
+    border-radius: 6px;
+    transition: all 0.12s ease;
+    position: relative;
+}
+
+.editor-tabs__menu-item:hover {
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+    color: #0f172a;
+}
+
+.editor-tabs__menu-item:active {
+    transform: scale(0.98);
+}
+
+.editor-tabs__menu-item svg {
+    width: 15px;
+    height: 15px;
+    color: #64748b;
+    transition: color 0.12s ease;
+}
+
+.editor-tabs__menu-item:hover svg {
+    color: #475569;
+}
+
+/* Destructive Actions - Red Accent */
+.editor-tabs__menu-item--danger:hover {
+    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+    color: #dc2626;
+}
+
+.editor-tabs__menu-item--danger:hover svg {
+    color: #dc2626;
+}
+
+/* Primary Action - Blue Accent */
+.editor-tabs__menu-item--primary:hover {
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    color: #2563eb;
+}
+
+.editor-tabs__menu-item--primary:hover svg {
+    color: #2563eb;
+}
+
+.editor-tabs__menu-separator {
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, #e2e8f0 50%, transparent 100%);
+    margin: 6px 8px;
+}
+
+/* Keyboard Shortcut Hint (optional future use) */
+.editor-tabs__menu-shortcut {
+    margin-left: auto;
+    font-size: 11px;
+    color: #94a3b8;
+    font-family: var(--font-mono, monospace);
+}
+
+@keyframes contextMenuSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px) scale(0.96);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}

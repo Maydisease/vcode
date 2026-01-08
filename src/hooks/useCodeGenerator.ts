@@ -104,7 +104,7 @@ export function useCodeGenerator() {
         setSelectedApis,
         reset
     } = useGeneratorStore();
-    const { addLog, startTask, completeTask, clearLogs } = useLogStore();
+    const { addLog, startTask, completeTask, clearLogs, setTaskComplete } = useLogStore();
     const { setFiles, clearProject, addFileVersion } = useProjectStore();
     const { addRecord } = useHistoryStore();
 
@@ -479,9 +479,10 @@ export function useCodeGenerator() {
             setStep('idle');
         } finally {
             console.log(`[Exec ${execId}] Finished (finally block)`);
+            setTaskComplete(); // Record end time for duration display
             setIsGenerating(false);
         }
-    }, [apiKey, modelConfig, addLog, startTask, completeTask, setIsGenerating, setStep, setProgress, setGeneratedCode, appendCode, setFiles, clearProject, generateSingleFile, addFileVersion, dataURLtoFile, runGenerationTask]);
+    }, [apiKey, modelConfig, addLog, startTask, completeTask, setIsGenerating, setStep, setProgress, setGeneratedCode, appendCode, setFiles, clearProject, generateSingleFile, addFileVersion, dataURLtoFile, runGenerationTask, setTaskComplete]);
 
     /**
      * Simple single-file generation (legacy mode)

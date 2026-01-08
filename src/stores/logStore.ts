@@ -10,9 +10,11 @@ interface TokenInfo {
 interface LogStore {
     logs: LogEntry[];
     taskStartTime: number | null;
+    taskEndTime: number | null; // Properly track end time
     addLog: (message: string, level?: LogLevel, imageUrl?: string, promptContent?: string) => void;
     startTask: (message: string, promptContent?: string) => string; // Returns log id
     completeTask: (logId: string, message: string, level?: LogLevel, tokens?: TokenInfo, promptContent?: string) => void;
+    setTaskComplete: () => void; // Mark task as complete
     clearLogs: () => void;
     getTaskDuration: () => number;
     getTotalTokens: () => { input: number; output: number };
@@ -23,6 +25,7 @@ export const useLogStore = create<LogStore>()(
         (set, get) => ({
             logs: [],
             taskStartTime: null,
+            taskEndTime: null,
 
             addLog: (message, level = 'info', imageUrl, promptContent) =>
                 set((state) => {
@@ -84,12 +87,18 @@ export const useLogStore = create<LogStore>()(
                     ),
                 })),
 
-            clearLogs: () => set({ logs: [], taskStartTime: null }),
+            setTaskComplete: () => set((state) => ({
+                taskEndTime: state.taskStartTime ? Date.now() : null,
+            })),
+
+            clearLogs: () => set({ logs: [], taskStartTime: null, taskEndTime: null }),
 
             getTaskDuration: () => {
                 const state = get();
                 if (!state.taskStartTime) return 0;
-                return Date.now() - state.taskStartTime;
+                // Use taskEndTime if available, otherwise use current time
+                const endTime = state.taskEndTime || Date.now();
+                return endTime - state.taskStartTime;
             },
 
             getTotalTokens: () => {
@@ -112,6 +121,7 @@ export const useLogStore = create<LogStore>()(
                     isRunning: false,
                 })),
                 taskStartTime: state.taskStartTime,
+                taskEndTime: state.taskEndTime,
             }),
         }
     )

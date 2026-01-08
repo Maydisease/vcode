@@ -1,10 +1,13 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import Editor, { BeforeMount } from '@monaco-editor/react';
+import type * as Monaco from 'monaco-editor';
 import { Code2, Copy, Check, Download, Package, Save, History } from 'lucide-react';
 import { useProjectStore } from '../../stores/projectStore';
+import { useFormConfigEditorStore } from '../../stores/formConfigEditorStore';
 import { FileTree } from '../FileTree/FileTree';
 import { EditorTabs } from '../EditorTabs/EditorTabs';
 import { DiffViewer } from '../DiffViewer/DiffViewer';
+import { FormConfigEditor } from '../FormConfigEditor/FormConfigEditor';
 import { saveToFile } from '../../services/exportService';
 import { toast } from '../Toast/Toast';
 import './CodeEditor.css';
@@ -27,9 +30,49 @@ const handleEditorWillMount: BeforeMount = (monaco) => {
 export function CodeEditor() {
     const [copied, setCopied] = useState(false);
     const { files, activeFileId, diffViewFileId, getActiveFile, updateFileContent } = useProjectStore();
+    const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
+    const { codeRange } = useFormConfigEditorStore();
+    const decorationsRef = useRef<string[]>([]);
+    const codeLensProviderRef = useRef<Monaco.IDisposable | null>(null);
+    const commandDisposableRef = useRef<Monaco.IDisposable | null>(null);
 
     const activeFile = getActiveFile();
     const hasFiles = files.length > 0;
+
+    // Cleanup global Monaco resources on unmount
+    useEffect(() => {
+        return () => {
+            if (codeLensProviderRef.current) {
+                codeLensProviderRef.current.dispose();
+            }
+            if (commandDisposableRef.current) {
+                commandDisposableRef.current.dispose();
+            }
+        };
+    }, []);
+
+    // Handle saving FormConfig changes back to the editor
+    const handleFormConfigSave = useCallback((newArrayCode: string) => {
+        const editor = editorRef.current;
+        const range = codeRange;
+        if (!editor || !range) return;
+
+        const model = editor.getModel();
+        if (!model) return;
+
+        // Replace the code in the editor
+        editor.executeEdits('formConfigEditor', [{
+            range: new (window as any).monaco.Range(
+                range.startLine,
+                range.startColumn,
+                range.endLine,
+                range.endColumn
+            ),
+            text: newArrayCode,
+        }]);
+
+        toast.success('配置已保存');
+    }, [codeRange]);
 
     const handleCopy = useCallback(async () => {
         if (!activeFile?.content) return;
@@ -153,6 +196,169 @@ export function CodeEditor() {
                             value={activeFile.content || ''}
                             onChange={handleEditorChange}
                             beforeMount={handleEditorWillMount}
+                            onMount={(editor, monaco) => {
+                                // Save editor reference
+                                editorRef.current = editor;
+
+                                // 1. Action: Select Code Block
+                                editor.addAction({
+                                    id: 'select-code-block',
+                                    label: '选中代码块',
+                                    keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyB],
+                                    contextMenuGroupId: 'navigation',
+                                    contextMenuOrder: 1,
+                                    run: async (ed) => {
+                                        const model = ed.getModel();
+                                        if (!model) return;
+                                        const position = ed.getPosition();
+                                        if (!position) return;
+                                        const offset = model.getOffsetAt(position);
+                                        const code = model.getValue();
+
+                                        const { findFormConfigByType, findCodeBlockAtPosition } = await import('../../utils/astUtils');
+                                        const { parseFormConfigCode } = await import('../../utils/codeGenerator');
+
+                                        // Try FormConfig first
+                                        const formConfig = findFormConfigByType(code, offset);
+                                        if (formConfig) {
+                                            const startPos = model.getPositionAt(formConfig.statementStart);
+                                            const endPos = model.getPositionAt(formConfig.statementEnd);
+                                            ed.setSelection({
+                                                startLineNumber: startPos.lineNumber,
+                                                startColumn: startPos.column,
+                                                endLineNumber: endPos.lineNumber,
+                                                endColumn: endPos.column,
+                                            });
+                                            ed.revealLineInCenter(startPos.lineNumber);
+
+                                            const fields = parseFormConfigCode(formConfig.text);
+                                            useFormConfigEditorStore.getState().open({
+                                                fields,
+                                                variableName: formConfig.name,
+                                                typeName: formConfig.typeName,
+                                                codeRange: {
+                                                    startLine: model.getPositionAt(formConfig.valueStart).lineNumber,
+                                                    startColumn: model.getPositionAt(formConfig.valueStart).column,
+                                                    endLine: model.getPositionAt(formConfig.valueEnd).lineNumber,
+                                                    endColumn: model.getPositionAt(formConfig.valueEnd).column,
+                                                },
+                                                originalCode: formConfig.text,
+                                            });
+                                            return;
+                                        }
+
+                                        // Fallback
+                                        const block = findCodeBlockAtPosition(code, offset);
+                                        if (block) {
+                                            const startPos = model.getPositionAt(block.valueStart);
+                                            const endPos = model.getPositionAt(block.valueEnd);
+                                            ed.setSelection({
+                                                startLineNumber: startPos.lineNumber,
+                                                startColumn: startPos.column,
+                                                endLineNumber: endPos.lineNumber,
+                                                endColumn: endPos.column,
+                                            });
+                                            ed.revealLineInCenter(startPos.lineNumber);
+                                            toast.success(`已选中: ${block.name} (${block.type})`);
+                                        } else {
+                                            toast.info('当前位置没有可识别的代码块');
+                                        }
+                                    }
+                                });
+
+                                // 2. CodeLens & Highlight
+                                const commandId = 'openFormConfigEditor_' + Date.now();
+                                if (commandDisposableRef.current) {
+                                    commandDisposableRef.current.dispose();
+                                }
+                                commandDisposableRef.current = monaco.editor.registerCommand(commandId, async (_accessor: any, formConfig: any) => {
+                                    if (!formConfig) return;
+                                    const { parseFormConfigCode } = await import('../../utils/codeGenerator');
+                                    const model = editor.getModel();
+                                    if (!model) return;
+
+                                    const fields = parseFormConfigCode(formConfig.text);
+                                    useFormConfigEditorStore.getState().open({
+                                        fields,
+                                        variableName: formConfig.name,
+                                        typeName: formConfig.typeName,
+                                        codeRange: {
+                                            startLine: model.getPositionAt(formConfig.valueStart).lineNumber,
+                                            startColumn: model.getPositionAt(formConfig.valueStart).column,
+                                            endLine: model.getPositionAt(formConfig.valueEnd).lineNumber,
+                                            endColumn: model.getPositionAt(formConfig.valueEnd).column,
+                                        },
+                                        originalCode: formConfig.text,
+                                    });
+                                });
+
+                                const updateFeatures = async () => {
+                                    const model = editor.getModel();
+                                    if (!model) return;
+                                    const code = model.getValue();
+                                    const { findAllFormConfigs } = await import('../../utils/astUtils');
+                                    const configs = findAllFormConfigs(code);
+
+                                    // Decorations
+                                    const newDecorations: Monaco.editor.IModelDeltaDecoration[] = configs.map(config => ({
+                                        range: {
+                                            startLineNumber: model.getPositionAt(config.valueStart).lineNumber,
+                                            startColumn: model.getPositionAt(config.valueStart).column,
+                                            endLineNumber: model.getPositionAt(config.valueEnd).lineNumber,
+                                            endColumn: model.getPositionAt(config.valueEnd).column,
+                                        },
+                                        options: {
+                                            isWholeLine: false,
+                                            className: 'form-config-highlight',
+                                            hoverMessage: { value: 'Click CodeLens to edit' }
+                                        }
+                                    }));
+                                    decorationsRef.current = editor.deltaDecorations(decorationsRef.current, newDecorations);
+                                };
+
+                                let timeout: any;
+                                const debounceUpdate = () => {
+                                    clearTimeout(timeout);
+                                    timeout = setTimeout(updateFeatures, 500);
+                                };
+
+                                const changeDisposable = editor.onDidChangeModelContent(() => {
+                                    debounceUpdate();
+                                });
+
+                                debounceUpdate();
+
+                                // Register CodeLens Provider
+                                if (codeLensProviderRef.current) {
+                                    codeLensProviderRef.current.dispose();
+                                }
+                                codeLensProviderRef.current = monaco.languages.registerCodeLensProvider('typescript', {
+                                    provideCodeLenses: async (model: Monaco.editor.ITextModel, token: Monaco.CancellationToken) => {
+                                        if (model.uri.toString() !== editor.getModel()?.uri.toString()) return null;
+                                        const code = model.getValue();
+                                        const { findAllFormConfigs } = await import('../../utils/astUtils');
+                                        const configs = findAllFormConfigs(code);
+                                        return {
+                                            lenses: configs.map(config => ({
+                                                range: {
+                                                    startLineNumber: model.getPositionAt(config.start).lineNumber,
+                                                    startColumn: 1,
+                                                    endLineNumber: model.getPositionAt(config.start).lineNumber,
+                                                    endColumn: 1
+                                                },
+                                                id: config.name,
+                                                command: {
+                                                    id: commandId,
+                                                    title: '⚡️ Edit Config',
+                                                    arguments: [config]
+                                                }
+                                            })),
+                                            dispose: () => { }
+                                        };
+                                    },
+                                    resolveCodeLens: (model: any, codeLens: any) => codeLens
+                                });
+                            }}
                             theme="vs-light"
                             options={{
                                 minimap: { enabled: false },
@@ -180,6 +386,9 @@ export function CodeEditor() {
                     )}
                 </div>
             </div>
+
+            {/* FormConfig Visual Editor Modal */}
+            <FormConfigEditor onSave={handleFormConfigSave} />
         </div>
     );
 }
