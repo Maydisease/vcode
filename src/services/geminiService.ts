@@ -191,6 +191,10 @@ export async function parseImageDescription(
         return result;
     } catch (error) {
         console.error('Image description parsing failed:', error);
-        throw error;
+        // Ensure we pass the full error message
+        const errorMessage = typeof error === 'string'
+            ? error
+            : (error instanceof Error ? error.message : JSON.stringify(error));
+        throw new Error(errorMessage);
     }
 }

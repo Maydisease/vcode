@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link2, RefreshCw, Loader2, Clock } from 'lucide-react';
+import Editor from '@monaco-editor/react';
 import { useSettingsStore } from '../../stores/settingsStore';
 import {
     fetchApifoxOpenAPI,
@@ -7,21 +8,8 @@ import {
     formatEndpointForPrompt,
     type ApifoxEndpoint,
 } from '../../services/apifoxService';
-import { SearchableSelect } from './SearchableSelect';
-import './ApiSelector.css';
-
-interface ApiSelectorProps {
-    onConfirm: (selectedApis: SelectedApis) => void;
-    onSkip: () => void;
-}
-
-export interface SelectedApis {
-    createApi: ApifoxEndpoint | null;
-    updateApi: ApifoxEndpoint | null;
-    deleteApi: ApifoxEndpoint | null;
-    queryApi: ApifoxEndpoint | null;
-    columnsCode: string;
-}
+import { SearchableSelect } from '../ApiSelector/SearchableSelect';
+import type { SelectedApis } from '../ApiSelector/ApiSelector';
 
 // Cache key for localStorage
 const CACHE_KEY = 'vcode-apifox-cache';
@@ -40,15 +28,11 @@ interface SelectionCache {
     columnsCode: string;
 }
 
-/**
- * Load cached endpoints from localStorage
- */
 function loadFromCache(): ApifoxCache | null {
     try {
         const cached = localStorage.getItem(CACHE_KEY);
         if (cached) {
-            const data = JSON.parse(cached) as ApifoxCache;
-            return data;
+            return JSON.parse(cached) as ApifoxCache;
         }
     } catch (e) {
         console.error('Failed to load cache:', e);
@@ -56,9 +40,6 @@ function loadFromCache(): ApifoxCache | null {
     return null;
 }
 
-/**
- * Save endpoints to cache with current timestamp
- */
 function saveToCache(endpoints: ApifoxEndpoint[]): void {
     const cache: ApifoxCache = {
         endpoints,
@@ -67,18 +48,11 @@ function saveToCache(endpoints: ApifoxEndpoint[]): void {
     localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
 }
 
-/**
- * Check if cache is still valid (within 24 hours)
- */
 function isCacheValid(cache: ApifoxCache | null): boolean {
     if (!cache) return false;
-    const now = Date.now();
-    return (now - cache.lastUpdated) < CACHE_EXPIRY_MS;
+    return (Date.now() - cache.lastUpdated) < CACHE_EXPIRY_MS;
 }
 
-/**
- * Load last selected APIs from localStorage
- */
 function loadSelectionCache(): SelectionCache | null {
     try {
         const cached = localStorage.getItem(SELECTION_CACHE_KEY);
@@ -91,31 +65,30 @@ function loadSelectionCache(): SelectionCache | null {
     return null;
 }
 
-/**
- * Save selected APIs to localStorage
- */
 function saveSelectionCache(selection: SelectionCache): void {
     localStorage.setItem(SELECTION_CACHE_KEY, JSON.stringify(selection));
 }
 
-/**
- * Format timestamp to readable string
- */
 function formatLastUpdated(timestamp: number): string {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - timestamp;
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMs = Date.now() - timestamp;
     const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
 
     if (diffMins < 1) return '刚刚';
     if (diffMins < 60) return `${diffMins} 分钟前`;
     if (diffHours < 24) return `${diffHours} 小时前`;
 
+    const date = new Date(timestamp);
     return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
 }
 
-export function ApiSelector({ onConfirm, onSkip }: ApiSelectorProps) {
+interface ApiSelectorContentProps {
+    onConfirm: (apis: SelectedApis) => void;
+    onSkip: () => void;
+    hideActions?: boolean;
+}
+
+export function ApiSelectorContent({ onConfirm, onSkip, hideActions }: ApiSelectorContentProps) {
     const { apifoxToken, apifoxProjects } = useSettingsStore();
     const [selectedProjectId, setSelectedProjectId] = useState<string>('');
     const [endpoints, setEndpoints] = useState<ApifoxEndpoint[]>([]);
@@ -125,26 +98,22 @@ export function ApiSelector({ onConfirm, onSkip }: ApiSelectorProps) {
 
     const [createApiId, setCreateApiId] = useState<string>('');
     const [updateApiId, setUpdateApiId] = useState<string>('');
+    const [deleteApiId, setDeleteApiId] = useState<string>('');
     const [queryApiId, setQueryApiId] = useState<string>('');
     const [columnsCode, setColumnsCode] = useState<string>('');
 
-    // Default to first project if available and none selected
     useEffect(() => {
         if (!selectedProjectId && apifoxProjects.length > 0) {
             setSelectedProjectId(apifoxProjects[0].projectId);
         }
     }, [apifoxProjects, selectedProjectId]);
 
-    /**
-     * Restore last selection if endpoints exist in current list
-     */
     const restoreSelection = useCallback((endpointList: ApifoxEndpoint[]) => {
         const cached = loadSelectionCache();
         if (!cached) return;
 
         const endpointIds = new Set(endpointList.map(e => e.id));
 
-        // Only restore if the endpoint still exists in the list
         if (cached.createApiId && endpointIds.has(cached.createApiId)) {
             setCreateApiId(cached.createApiId);
         }
@@ -159,9 +128,6 @@ export function ApiSelector({ onConfirm, onSkip }: ApiSelectorProps) {
         }
     }, []);
 
-    /**
-     * Fetch endpoints from API and update cache
-     */
     const fetchAndCacheEndpoints = useCallback(async () => {
         if (!apifoxToken || !selectedProjectId) {
             setError('请先在设置中配置 Apifox Token 和项目');
@@ -177,12 +143,10 @@ export function ApiSelector({ onConfirm, onSkip }: ApiSelectorProps) {
             saveToCache(parsedEndpoints);
             setLastUpdated(Date.now());
 
-            // Reset selections that no longer exist
             const endpointIds = new Set(parsedEndpoints.map(e => e.id));
             setCreateApiId(prev => endpointIds.has(prev) ? prev : '');
             setUpdateApiId(prev => endpointIds.has(prev) ? prev : '');
             setQueryApiId(prev => endpointIds.has(prev) ? prev : '');
-            // columnsCode doesn't need validation against endpoints
         } catch (err) {
             setError(err instanceof Error ? err.message : '获取接口列表失败');
         } finally {
@@ -190,27 +154,18 @@ export function ApiSelector({ onConfirm, onSkip }: ApiSelectorProps) {
         }
     }, [apifoxToken, selectedProjectId]);
 
-    /**
-     * Load endpoints with cache support
-     */
     const loadEndpoints = useCallback(async () => {
         const cache = loadFromCache();
 
         if (isCacheValid(cache)) {
-            // Use cached data
             setEndpoints(cache!.endpoints);
             setLastUpdated(cache!.lastUpdated);
-            // Restore last selection
             restoreSelection(cache!.endpoints);
         } else {
-            // Fetch new data
             await fetchAndCacheEndpoints();
         }
     }, [fetchAndCacheEndpoints, restoreSelection]);
 
-    /**
-     * Force refresh - bypass cache
-     */
     const handleForceRefresh = useCallback(() => {
         fetchAndCacheEndpoints();
     }, [fetchAndCacheEndpoints]);
@@ -221,7 +176,6 @@ export function ApiSelector({ onConfirm, onSkip }: ApiSelectorProps) {
         }
     }, [loadEndpoints, selectedProjectId]);
 
-    // Save selection changes to cache
     useEffect(() => {
         if (endpoints.length > 0) {
             saveSelectionCache({
@@ -238,10 +192,10 @@ export function ApiSelector({ onConfirm, onSkip }: ApiSelectorProps) {
     const selectedApis = useMemo<SelectedApis>(() => ({
         createApi: getEndpointById(createApiId),
         updateApi: getEndpointById(updateApiId),
-        deleteApi: null, // Not used in standalone selector yet
+        deleteApi: getEndpointById(deleteApiId),
         queryApi: getEndpointById(queryApiId),
         columnsCode,
-    }), [createApiId, updateApiId, queryApiId, columnsCode, getEndpointById]);
+    }), [createApiId, updateApiId, deleteApiId, queryApiId, columnsCode, getEndpointById]);
 
     const hasSelection = createApiId || updateApiId;
 
@@ -249,7 +203,6 @@ export function ApiSelector({ onConfirm, onSkip }: ApiSelectorProps) {
         onConfirm(selectedApis);
     };
 
-    // Generate preview text
     const previewText = useMemo(() => {
         const parts: string[] = [];
         if (selectedApis.createApi) {
@@ -267,63 +220,6 @@ export function ApiSelector({ onConfirm, onSkip }: ApiSelectorProps) {
         return parts.join('\n\n');
     }, [selectedApis]);
 
-    if (loading && endpoints.length === 0) {
-        return (
-            <div className="api-selector">
-                <div className="api-selector__loading">
-                    <Loader2 size={24} className="animate-spin" />
-                    <span>正在获取接口列表...</span>
-                </div>
-            </div>
-        );
-    }
-
-    if ((!apifoxToken || apifoxProjects.length === 0) && endpoints.length === 0) {
-        return (
-            <div className="api-selector">
-                <div className="api-selector__header">
-                    <div className="api-selector__title">
-                        <Link2 size={16} />
-                        <span>选择关联配置</span>
-                    </div>
-                </div>
-                <div className="api-selector__error">
-                    请先在设置中配置 Apifox Token 和项目信息
-                </div>
-                <div className="api-selector__actions">
-                    <button className="api-selector__btn api-selector__btn--secondary" onClick={onSkip}>
-                        跳过
-                    </button>
-                    {/* Ideally we would navigate to settings here, but we can just ask user to do it */}
-                </div>
-            </div>
-        );
-    }
-
-    if (error && endpoints.length === 0) {
-        return (
-            <div className="api-selector">
-                <div className="api-selector__header">
-                    <div className="api-selector__title">
-                        <Link2 size={16} />
-                        <span>选择关联配置</span>
-                    </div>
-                </div>
-                <div className="api-selector__error">{error}</div>
-                <div className="api-selector__actions">
-                    <button className="api-selector__btn api-selector__btn--secondary" onClick={handleForceRefresh}>
-                        重试
-                    </button>
-                    <button className="api-selector__btn api-selector__btn--secondary" onClick={onSkip}>
-                        跳过
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
-
-    // Helper to highlight matching text
     const highlightMatch = (text: string, search: string) => {
         if (!search.trim()) return text;
         const index = text.toLowerCase().indexOf(search.toLowerCase());
@@ -360,6 +256,64 @@ export function ApiSelector({ onConfirm, onSkip }: ApiSelectorProps) {
     const getApiLabel = (opt: ApifoxEndpoint) => `${opt.method} ${opt.path}`;
     const getApiValue = (opt: ApifoxEndpoint) => opt.id;
 
+    if (loading && endpoints.length === 0) {
+        return (
+            <div className="api-selector">
+                <div className="api-selector__loading">
+                    <Loader2 size={24} className="animate-spin" />
+                    <span>正在获取接口列表...</span>
+                </div>
+            </div>
+        );
+    }
+
+    if ((!apifoxToken || apifoxProjects.length === 0) && endpoints.length === 0) {
+        return (
+            <div className="api-selector">
+                <div className="api-selector__header">
+                    <div className="api-selector__title">
+                        <Link2 size={16} />
+                        <span>选择关联配置</span>
+                    </div>
+                </div>
+                <div className="api-selector__error">
+                    请先在设置中配置 Apifox Token 和项目信息
+                </div>
+                {!hideActions && (
+                    <div className="api-selector__actions">
+                        <button className="api-selector__btn api-selector__btn--secondary" onClick={onSkip}>
+                            跳过
+                        </button>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    if (error && endpoints.length === 0) {
+        return (
+            <div className="api-selector">
+                <div className="api-selector__header">
+                    <div className="api-selector__title">
+                        <Link2 size={16} />
+                        <span>选择关联配置</span>
+                    </div>
+                </div>
+                <div className="api-selector__error">{error}</div>
+                {!hideActions && (
+                    <div className="api-selector__actions">
+                        <button className="api-selector__btn api-selector__btn--secondary" onClick={handleForceRefresh}>
+                            重试
+                        </button>
+                        <button className="api-selector__btn api-selector__btn--secondary" onClick={onSkip}>
+                            跳过
+                        </button>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
     return (
         <div className="api-selector">
             <div className="api-selector__header">
@@ -368,8 +322,6 @@ export function ApiSelector({ onConfirm, onSkip }: ApiSelectorProps) {
                     <span>选择关联配置</span>
                     <span className="api-selector__count">({endpoints.length} 个接口)</span>
                 </div>
-
-
 
                 <div className="api-selector__header-actions">
                     {lastUpdated && (
@@ -391,7 +343,6 @@ export function ApiSelector({ onConfirm, onSkip }: ApiSelectorProps) {
             </div>
 
             <div className="api-selector__fields">
-                {/* Project Selector */}
                 {apifoxProjects.length > 0 && (
                     <div className="api-selector__field">
                         <label className="api-selector__label">选择项目</label>
@@ -447,6 +398,19 @@ export function ApiSelector({ onConfirm, onSkip }: ApiSelectorProps) {
                 </div>
 
                 <div className="api-selector__field">
+                    <label className="api-selector__label">删除接口 (可选)</label>
+                    <SearchableSelect<ApifoxEndpoint>
+                        value={deleteApiId}
+                        onChange={setDeleteApiId}
+                        options={endpoints.filter(e => ['POST', 'DELETE'].includes(e.method))}
+                        placeholder="输入关键字搜索..."
+                        getValue={getApiValue}
+                        getLabel={getApiLabel}
+                        renderOption={renderApiOption}
+                    />
+                </div>
+
+                <div className="api-selector__field">
                     <label className="api-selector__label">Table Columns ID (columnsCode)</label>
                     <input
                         type="text"
@@ -461,24 +425,51 @@ export function ApiSelector({ onConfirm, onSkip }: ApiSelectorProps) {
             {hasSelection && (
                 <div className="api-selector__preview">
                     <div className="api-selector__preview-title">已选接口参数预览</div>
-                    <div className="api-selector__preview-content">
-                        {previewText || <span className="api-selector__preview-empty">请选择接口</span>}
+                    <div className="api-selector__preview-editor">
+                        <Editor
+                            height="200px"
+                            language="yaml"
+                            theme="vs"
+                            value={previewText || '// 请选择接口'}
+                            options={{
+                                readOnly: true,
+                                minimap: { enabled: false },
+                                fontSize: 12,
+                                lineNumbers: 'off',
+                                folding: false,
+                                scrollBeyondLastLine: false,
+                                wordWrap: 'on',
+                                automaticLayout: true,
+                                padding: { top: 12, bottom: 12 },
+                            }}
+                        />
                     </div>
                 </div>
             )}
 
-            <div className="api-selector__actions">
-                <button className="api-selector__btn api-selector__btn--secondary" onClick={onSkip}>
-                    跳过
-                </button>
+            {!hideActions && (
+                <div className="api-selector__actions">
+                    <button className="api-selector__btn api-selector__btn--secondary" onClick={onSkip}>
+                        跳过
+                    </button>
+                    <button
+                        className="api-selector__btn api-selector__btn--primary"
+                        onClick={handleConfirm}
+                        disabled={!hasSelection}
+                    >
+                        确认并生成代码
+                    </button>
+                </div>
+            )}
+
+            {/* Hidden confirm button for wizard to trigger */}
+            {hideActions && hasSelection && (
                 <button
-                    className="api-selector__btn api-selector__btn--primary"
+                    id="wizard-api-confirm-btn"
+                    style={{ display: 'none' }}
                     onClick={handleConfirm}
-                    disabled={!hasSelection}
-                >
-                    确认并生成代码
-                </button>
-            </div>
+                />
+            )}
         </div>
     );
 }

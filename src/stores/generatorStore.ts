@@ -3,8 +3,15 @@ import { persist } from 'zustand/middleware';
 import type { GeneratorState } from '../types';
 import type { SelectedApis } from '../components/ApiSelector/ApiSelector';
 
-// Generation workflow steps
-export type GeneratorStep = 'idle' | 'api-select' | 'generating' | 'refining' | 'done';
+// Generation workflow steps - includes wizard steps
+export type GeneratorStep =
+    | 'idle'
+    | 'wizard-upload'      // Step 1: Upload image + custom prompt
+    | 'wizard-recognize'   // Step 2: LLM recognizes image
+    | 'wizard-api'         // Step 3: Select APIs
+    | 'generating'
+    | 'refining'
+    | 'done';
 
 // Track which files need to be generated
 export type PendingFile = 'index' | 'modal' | 'service';
@@ -13,6 +20,12 @@ interface GeneratorStore extends GeneratorState {
     // Workflow state
     step: GeneratorStep;
     selectedApis: SelectedApis | null;
+
+    // Wizard state
+    wizardOpen: boolean;
+    customPrompt: string;
+    imageSummary: string;
+    imageFullDescription: string;
 
     // Pending generation tracking for resume after refresh
     pendingFiles: PendingFile[];
@@ -32,12 +45,21 @@ interface GeneratorStore extends GeneratorState {
     markFileComplete: (file: PendingFile) => void;
     setNeedsResume: (needs: boolean) => void;
     setTask: (key: string, id: string | null) => void;
+    // Wizard actions
+    setWizardOpen: (open: boolean) => void;
+    setCustomPrompt: (prompt: string) => void;
+    setImageSummary: (summary: string) => void;
+    setImageFullDescription: (description: string) => void;
     reset: () => void;
 }
 
 const initialState: GeneratorState & {
     step: GeneratorStep;
     selectedApis: SelectedApis | null;
+    wizardOpen: boolean;
+    customPrompt: string;
+    imageSummary: string;
+    imageFullDescription: string;
     pendingFiles: PendingFile[];
     needsResume: boolean;
     activeTasks: Record<string, string>;
@@ -49,6 +71,10 @@ const initialState: GeneratorState & {
     progress: 0,
     step: 'idle',
     selectedApis: null,
+    wizardOpen: false,
+    customPrompt: '',
+    imageSummary: '',
+    imageFullDescription: '',
     pendingFiles: [],
     needsResume: false,
     activeTasks: {},
@@ -94,6 +120,12 @@ export const useGeneratorStore = create<GeneratorStore>()(
                 return { activeTasks: { ...state.activeTasks, [key]: id } };
             }),
 
+            // Wizard actions
+            setWizardOpen: (open) => set({ wizardOpen: open }),
+            setCustomPrompt: (prompt) => set({ customPrompt: prompt }),
+            setImageSummary: (summary) => set({ imageSummary: summary }),
+            setImageFullDescription: (description) => set({ imageFullDescription: description }),
+
             reset: () => set(initialState),
         }),
         {
@@ -102,6 +134,7 @@ export const useGeneratorStore = create<GeneratorStore>()(
                 imagePreview: state.imagePreview,
                 selectedApis: state.selectedApis,
                 step: state.step,
+                customPrompt: state.customPrompt,
                 // Mark that we need to resume if step is 'generating' or 'refining'
                 needsResume: state.step === 'generating' || state.step === 'refining',
                 activeTasks: state.activeTasks,

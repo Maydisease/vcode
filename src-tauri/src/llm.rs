@@ -543,24 +543,152 @@ pub async fn generate_code_gemini(
 
     Ok(())
 }
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ImageDescriptionResult {
+    pub summary: String,
+    pub full: String,
+    #[serde(default)]
+    pub is_form: bool,
+}
 
 #[tauri::command]
 pub async fn parse_image_description(
+    provider: String,
     api_key: String,
+    base_url: Option<String>,
+    model: Option<String>,
     image_base64: String,
     image_mime_type: String,
+    custom_prompt: Option<String>,
+) -> Result<ImageDescriptionResult, String> {
+    // Build the structured prompt
+    let user_hint = custom_prompt
+        .map(|p| format!("\n\n用户附加提示：{}", p))
+        .unwrap_or_default();
+
+    let prompt = format!(
+        r#"请分析这张 UI 设计图，并按以下格式返回 JSON：
+
+{{
+  "is_form": true或false，表示图片中是否包含表单（有输入字段的界面）,
+  "summary": "简易摘要，用 markdown 格式，包含：1) 识别到的 UI 类型（表单/表格/列表等）2) 如果是表单，用 markdown 表格列出字段信息",
+  "full": "完整的详细描述，包括布局、颜色、组件、文字等所有信息"
+}}
+
+简易摘要示例格式（表单）：
+```
+**识别类型**: 表单弹窗
+
+**表单字段**:
+| 字段名 | 类型 | 是否必填 |
+|--------|------|----------|
+| 资产名称 | 文本输入 | 是 |
+| 资产类型 | 下拉选择 | 是 |
+| 备注 | 文本域 | 否 |
+```
+
+简易摘要示例格式（非表单）：
+```
+**识别类型**: 数据列表页面
+
+此页面不包含可识别的表单字段。
+```
+
+请只返回 JSON，不要添加 markdown 代码块标记。{}"#,
+        user_hint
+    );
+
+    let raw_response = if provider == "google" {
+        call_gemini_api(&api_key, model, &prompt, &image_base64, &image_mime_type).await?
+    } else {
+        call_openai_api(
+            &api_key,
+            base_url,
+            model,
+            &prompt,
+            &image_base64,
+            &image_mime_type,
+        )
+        .await?
+    };
+
+    // Try to parse JSON response
+    let result = parse_json_response(&raw_response).unwrap_or_else(|| {
+        // If parsing fails, use the raw response as full and create a simple summary
+        ImageDescriptionResult {
+            summary: "**识别类型**: UI 界面\n\n（详细信息请查看完整描述）".to_string(),
+            full: raw_response,
+            is_form: false,
+        }
+    });
+
+    Ok(result)
+}
+
+fn parse_json_response(text: &str) -> Option<ImageDescriptionResult> {
+    let text = text.trim();
+
+    // Debug log
+    println!(
+        "[LLM] Attempting to parse JSON response, length: {}",
+        text.len()
+    );
+
+    // Try direct parsing first
+    if let Ok(result) = serde_json::from_str::<ImageDescriptionResult>(text) {
+        println!("[LLM] Direct JSON parsing succeeded");
+        return Some(result);
+    }
+
+    // Remove markdown code block if present (```json ... ```)
+    let json_str = if text.starts_with("```") {
+        let start = text.find('\n').map(|i| i + 1).unwrap_or(0);
+        let end = text.rfind("```").unwrap_or(text.len());
+        &text[start..end]
+    } else {
+        text
+    };
+
+    if let Ok(result) = serde_json::from_str::<ImageDescriptionResult>(json_str.trim()) {
+        println!("[LLM] JSON parsing succeeded after removing code block");
+        return Some(result);
+    }
+
+    // Try to find JSON object in the text (LLM might add extra text)
+    if let Some(start) = text.find('{') {
+        if let Some(end) = text.rfind('}') {
+            let json_slice = &text[start..=end];
+            if let Ok(result) = serde_json::from_str::<ImageDescriptionResult>(json_slice) {
+                println!("[LLM] JSON parsing succeeded by extracting object");
+                return Some(result);
+            }
+        }
+    }
+
+    println!(
+        "[LLM] All JSON parsing attempts failed. Raw text preview: {}",
+        &text[..text.len().min(200)]
+    );
+    None
+}
+
+async fn call_gemini_api(
+    api_key: &str,
+    model: Option<String>,
+    prompt: &str,
+    image_base64: &str,
+    image_mime_type: &str,
 ) -> Result<String, String> {
+    let model_name = model.unwrap_or_else(|| "gemini-2.0-flash".to_string());
     let url = format!(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={}",
-        api_key
+        "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
+        model_name, api_key
     );
 
     let request_body = json!({
         "contents": [{
             "parts": [
-                {
-                    "text": "请详细描述这张 UI 设计图的内容，包括布局、颜色、组件、文字等信息。使用中文回答。"
-                },
+                { "text": prompt },
                 {
                     "inline_data": {
                         "mime_type": image_mime_type,
@@ -568,7 +696,10 @@ pub async fn parse_image_description(
                     }
                 }
             ]
-        }]
+        }],
+        "generationConfig": {
+            "temperature": 0.3
+        }
     });
 
     let client = http_client::get_client();
@@ -602,6 +733,75 @@ pub async fn parse_image_description(
         .and_then(|p| p.get(0))
         .and_then(|p| p.get("text"))
         .and_then(|t| t.as_str())
+        .unwrap_or("无法解析响应")
+        .to_string();
+
+    Ok(text)
+}
+
+async fn call_openai_api(
+    api_key: &str,
+    base_url: Option<String>,
+    model: Option<String>,
+    prompt: &str,
+    image_base64: &str,
+    image_mime_type: &str,
+) -> Result<String, String> {
+    let base_url = base_url.unwrap_or_else(|| "https://api.openai.com/v1".to_string());
+    let base_url = base_url.trim_end_matches('/');
+    let url = format!("{}/chat/completions", base_url);
+    let model_name = model.unwrap_or_else(|| "gpt-4o".to_string());
+
+    let request_body = json!({
+        "model": model_name,
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    { "type": "text", "text": prompt },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": format!("data:{};base64,{}", image_mime_type, image_base64)
+                        }
+                    }
+                ]
+            }
+        ],
+        "max_tokens": 4096,
+        "temperature": 0.3
+    });
+
+    let client = http_client::get_client();
+    let response = client
+        .post(&url)
+        .header("Content-Type", "application/json")
+        .header("Authorization", format!("Bearer {}", api_key))
+        .body(request_body.to_string())
+        .send()
+        .await
+        .map_err(|e| format!("网络请求失败: {}", e))?;
+
+    let status = response.status();
+    if !status.is_success() {
+        let error_body = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "无法读取错误响应".to_string());
+        return Err(format!("API error {}: {}", status, error_body));
+    }
+
+    let json: Value = response
+        .json()
+        .await
+        .map_err(|e| format!("响应解析失败: {}", e))?;
+
+    let text = json
+        .get("choices")
+        .and_then(|c| c.get(0))
+        .and_then(|c| c.get("message"))
+        .and_then(|m| m.get("content"))
+        .and_then(|c| c.as_str())
         .unwrap_or("无法解析响应")
         .to_string();
 

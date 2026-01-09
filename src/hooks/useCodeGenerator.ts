@@ -123,8 +123,9 @@ export function useCodeGenerator() {
             const previewUrl = e.target?.result as string;
             setImagePreview(previewUrl);
             addLog(`已上传图片: ${file.name}`, 'info', previewUrl);
-            // Show API selector after image upload
-            setStep('api-select');
+            // Open the upload wizard dialog
+            useGeneratorStore.getState().setWizardOpen(true);
+            setStep('wizard-upload');
         };
         reader.readAsDataURL(file);
     }, [reset, clearLogs, clearProject, setImage, setImagePreview, addLog, setStep]);

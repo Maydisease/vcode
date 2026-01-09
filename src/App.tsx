@@ -7,39 +7,15 @@ import { StatusBar } from './components/Layout/StatusBar';
 import { SidePanel } from './components/SidePanel/SidePanel';
 import { CodeEditor } from './components/CodeEditor/CodeEditor';
 import { SettingsPage } from './components/Settings/SettingsPage';
-import { ApiSelector } from './components/ApiSelector/ApiSelector';
+import { UploadWizard } from './components/UploadWizard/UploadWizard';
 import { SandboxPreview } from './components/Sandbox/SandboxPreview';
 import { ToastContainer } from './components/Toast/Toast';
 import { useGeneratorStore } from './stores/generatorStore';
 import { useCodeGenerator } from './hooks/useCodeGenerator';
 import { useProjectStore, parseMultiFileOutput } from './stores/projectStore';
-import { useHistoryStore } from './stores/historyStore'; // Added import
+import { useHistoryStore } from './stores/historyStore';
 import './App.css';
 import './styles/global.css';
-
-// Wrapper component that includes API selector overlay
-function ApiSelectorOverlay() {
-  const { step } = useGeneratorStore();
-  const { handleApiSelection, skipApiSelection, generateEasyFormCode } = useCodeGenerator();
-
-  if (step !== 'api-select') {
-    return null;
-  }
-
-  return (
-    <div className="api-selector-overlay">
-      <ApiSelector
-        onConfirm={(apis) => {
-          handleApiSelection(apis);
-          generateEasyFormCode();
-        }}
-        onSkip={() => {
-          skipApiSelection();
-        }}
-      />
-    </div>
-  );
-}
 
 function App() {
   const [showSettings, setShowSettings] = useState(false);
@@ -117,7 +93,7 @@ function App() {
         }
         statusBar={<StatusBar />}
       />
-      <ApiSelectorOverlay />
+      <UploadWizard />
       <ToastContainer />
     </>
   );
