@@ -170,6 +170,7 @@ export function useCodeGenerator() {
     ): Promise<{ code: string; task: any }> => {
         const { apiKey, modelConfig } = useSettingsStore.getState();
         const { imagePreview, activeTasks, setTask } = useGeneratorStore.getState();
+        const { addApiLog } = useLogStore.getState();
 
         if (!apiKey) throw new Error('API Key not configured');
         if (!imagePreview) throw new Error('No image preview available');
@@ -179,6 +180,17 @@ export function useCodeGenerator() {
         const mimeType = meta.match(/:(.*?);/)?.[1] || 'image/png';
 
         let taskId = activeTasks[taskKey];
+        const startTime = Date.now();
+        const apiUrl = `backend://${modelConfig.provider || 'system'}/${modelConfig.model || 'default'}`;
+
+        // Estimate input tokens
+        let inputTokens = 0;
+        try {
+            const countResult = await countTokens(prompt);
+            inputTokens = countResult.count;
+        } catch (e) {
+            console.warn('Failed to count tokens:', e);
+        }
 
         // If no active task, start one
         if (!taskId) {
@@ -204,14 +216,21 @@ export function useCodeGenerator() {
                 }) as string;
 
                 setTask(taskKey, taskId);
-                console.log(`Task ${taskKey} started: ${taskId}`); // addLog removed
+                console.log(`Task ${taskKey} started: ${taskId}`);
 
             } catch (e) {
                 console.error("Start task failed", e);
+                addApiLog({
+                    url: apiUrl,
+                    reason: `Start Generation (${taskKey}) Failed`,
+                    status: 'failed',
+                    duration: Date.now() - startTime,
+                    usage: { promptTokens: inputTokens, completionTokens: 0, totalTokens: inputTokens }
+                });
                 throw e;
             }
         } else {
-            console.log(`Resuming task ${taskKey}: ${taskId}`); // addLog removed
+            console.log(`Resuming task ${taskKey}: ${taskId}`);
         }
 
         // Polling loop
@@ -228,12 +247,35 @@ export function useCodeGenerator() {
 
                 if (taskState.status === 'completed') {
                     setTask(taskKey, null); // Clear task on completion
-                    // addLog(`任务 ${taskKey} 完成`, 'success'); // Removed to reduce noise
+
+                    // Log success
+                    // Note: Backend might not return usage yet, so we estimate
+                    const contentLen = taskState.content?.length || 0;
+                    const completionTokens = Math.ceil(contentLen / 4);
+                    addApiLog({
+                        url: apiUrl,
+                        reason: `Generate ${taskKey}`,
+                        status: 'success',
+                        duration: Date.now() - startTime,
+                        usage: {
+                            promptTokens: inputTokens,
+                            completionTokens: completionTokens,
+                            totalTokens: inputTokens + completionTokens
+                        }
+                    });
+
                     return { code: taskState.content, task: taskState };
                 }
 
                 if (taskState.status === 'failed') {
                     setTask(taskKey, null);
+                    addApiLog({
+                        url: apiUrl,
+                        reason: `Generate ${taskKey} Failed`,
+                        status: 'failed',
+                        duration: Date.now() - startTime,
+                        usage: { promptTokens: inputTokens, completionTokens: 0, totalTokens: inputTokens }
+                    });
                     throw new Error(taskState.error || 'Unknown error');
                 }
 

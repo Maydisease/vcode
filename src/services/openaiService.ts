@@ -4,6 +4,7 @@
 import type { ModelConfig } from '../types';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { useLogStore } from '../stores/logStore';
 
 let openaiConfig: { baseUrl: string; apiKey: string } | null = null;
 
@@ -15,6 +16,56 @@ export function initializeOpenAI(apiKey: string, baseUrl: string = 'https://api.
 }
 
 /**
+ * Helpler to log API calls to logStore
+ */
+async function logApiCall<T>(
+    endpoint: string,
+    reason: string,
+    fn: () => Promise<T>,
+    tokenEstimator?: (result: T) => { prompt: number, completion: number }
+): Promise<T> {
+    const startTime = Date.now();
+    const { addApiLog } = useLogStore.getState();
+    const baseUrl = openaiConfig?.baseUrl || 'unknown';
+    const fullUrl = `${baseUrl}/${endpoint}`.replace(/([^:]\/)\/+/g, "$1"); // Normalize slashes
+
+    try {
+        const result = await fn();
+        const duration = Date.now() - startTime;
+
+        let usage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+        if (tokenEstimator) {
+            const estimated = tokenEstimator(result);
+            usage = {
+                promptTokens: estimated.prompt,
+                completionTokens: estimated.completion,
+                totalTokens: estimated.prompt + estimated.completion
+            };
+        }
+
+        addApiLog({
+            url: fullUrl,
+            reason,
+            status: 'success',
+            duration,
+            usage
+        });
+
+        return result;
+    } catch (error) {
+        const duration = Date.now() - startTime;
+        addApiLog({
+            url: fullUrl,
+            reason,
+            status: 'failed',
+            duration,
+            usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
+        });
+        throw error;
+    }
+}
+
+/**
  * Test OpenAI API connection via Tauri backend (bypasses CORS)
  */
 export async function testOpenAIConnection(): Promise<boolean> {
@@ -22,16 +73,13 @@ export async function testOpenAIConnection(): Promise<boolean> {
         throw new Error('OpenAI API not initialized');
     }
 
-    try {
+    return logApiCall('models', 'Connection Test', async () => {
         await invoke('test_openai_connection', {
-            baseUrl: openaiConfig.baseUrl,
-            apiKey: openaiConfig.apiKey
+            baseUrl: openaiConfig!.baseUrl,
+            apiKey: openaiConfig!.apiKey
         });
         return true;
-    } catch (error) {
-        console.error('OpenAI connection test failed:', error);
-        throw error;
-    }
+    });
 }
 
 /**
@@ -42,16 +90,12 @@ export async function fetchOpenAIModels(): Promise<Array<{ id: string; name: str
         throw new Error('OpenAI API not initialized');
     }
 
-    try {
-        const models = await invoke<Array<{ id: string; name: string }>>('fetch_openai_models', {
-            baseUrl: openaiConfig.baseUrl,
-            apiKey: openaiConfig.apiKey
+    return logApiCall('models', 'Fetch Models', async () => {
+        return await invoke<Array<{ id: string; name: string }>>('fetch_openai_models', {
+            baseUrl: openaiConfig!.baseUrl,
+            apiKey: openaiConfig!.apiKey
         });
-        return models;
-    } catch (error) {
-        console.error('Failed to fetch OpenAI models:', error);
-        throw error;
-    }
+    });
 }
 
 /**
@@ -96,10 +140,24 @@ export async function* generateCodeFromImageOpenAI(
     const chunks: StreamChunk[] = [];
     let resolveWait: (() => void) | null = null;
     let unlisten: UnlistenFn | null = null;
+    let accumulatedContent = '';
+
+    // Log the generation call
+    // Since it's a generator, we wrap the setup interactions, but tracking full stream duration 
+    // and tokens is harder in this specific generator structure without refactoring.
+    // We will log the *initiation* of the request here, but maybe update with tokens later?
+    // For now, let's log the start and end of the stream process roughly.
+    const startTime = Date.now();
+    const { addApiLog } = useLogStore.getState();
+    const baseUrl = openaiConfig.baseUrl;
+    const fullUrl = `${baseUrl}/chat/completions`.replace(/([^:]\/)\/+/g, "$1");
 
     // Set up event listener
     unlisten = await listen<StreamChunk>('llm-chunk', (event) => {
-        chunks.push(event.payload);
+        const payload = event.payload;
+        if (payload.content) accumulatedContent += payload.content;
+
+        chunks.push(payload);
         if (resolveWait) {
             resolveWait();
             resolveWait = null;
@@ -136,6 +194,14 @@ export async function* generateCodeFromImageOpenAI(
             const chunk = chunks.shift()!;
 
             if (chunk.error) {
+                // Log failure
+                addApiLog({
+                    url: fullUrl,
+                    reason: 'Generate Code (Stream Error)',
+                    status: 'failed',
+                    duration: Date.now() - startTime,
+                    usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
+                });
                 throw new Error(chunk.error);
             }
 
@@ -144,6 +210,20 @@ export async function* generateCodeFromImageOpenAI(
             }
 
             if (chunk.done) {
+                // Log success
+                // Note: We don't have exact token counts from the stream events usually, unless the backend sends usage.
+                // We'll estimate or just log duration.
+                addApiLog({
+                    url: fullUrl,
+                    reason: 'Generate Code (Stream Complete)',
+                    status: 'success',
+                    duration: Date.now() - startTime,
+                    usage: {
+                        promptTokens: 0,
+                        completionTokens: Math.ceil(accumulatedContent.length / 4), // Rough estimate
+                        totalTokens: Math.ceil(accumulatedContent.length / 4)
+                    }
+                });
                 break;
             }
         }

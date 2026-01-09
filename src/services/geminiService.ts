@@ -3,6 +3,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { useLogStore } from '../stores/logStore';
 
 let geminiApiKey: string | null = null;
 
@@ -10,14 +11,65 @@ export function initializeGemini(apiKey: string) {
     geminiApiKey = apiKey;
 }
 
-export async function testConnection(apiKey: string): Promise<boolean> {
+/**
+ * Helpler to log API calls to logStore
+ */
+async function logApiCall<T>(
+    endpoint: string,
+    reason: string,
+    fn: () => Promise<T>,
+    tokenEstimator?: (result: T) => { prompt: number, completion: number }
+): Promise<T> {
+    const startTime = Date.now();
+    const { addApiLog } = useLogStore.getState();
+    const fullUrl = `https://generativelanguage.googleapis.com/v1beta/${endpoint}`;
+
     try {
-        await invoke('test_gemini_connection', { apiKey });
-        return true;
+        const result = await fn();
+        const duration = Date.now() - startTime;
+
+        let usage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+        if (tokenEstimator) {
+            const estimated = tokenEstimator(result);
+            usage = {
+                promptTokens: estimated.prompt,
+                completionTokens: estimated.completion,
+                totalTokens: estimated.prompt + estimated.completion
+            };
+        }
+
+        addApiLog({
+            url: fullUrl,
+            reason,
+            status: 'success',
+            duration,
+            usage
+        });
+
+        return result;
     } catch (error) {
-        console.error('Connection test failed:', error);
+        const duration = Date.now() - startTime;
+        addApiLog({
+            url: fullUrl,
+            reason,
+            status: 'failed',
+            duration,
+            usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
+        });
         throw error;
     }
+}
+
+export async function testConnection(apiKey: string): Promise<boolean> {
+    return logApiCall('models', 'Connection Test', async () => {
+        try {
+            await invoke('test_gemini_connection', { apiKey });
+            return true;
+        } catch (error) {
+            console.error('Connection test failed:', error);
+            throw error;
+        }
+    });
 }
 
 export interface GeminiModel {
@@ -38,34 +90,36 @@ interface RustGeminiModel {
 }
 
 export async function fetchAvailableModels(apiKey: string): Promise<GeminiModel[]> {
-    try {
-        const models = await invoke<RustGeminiModel[]>('fetch_gemini_models', { apiKey });
+    return logApiCall('models', 'Fetch Models', async () => {
+        try {
+            const models = await invoke<RustGeminiModel[]>('fetch_gemini_models', { apiKey });
 
-        // Convert snake_case to camelCase and add sorting
-        const result: GeminiModel[] = models.map(m => ({
-            name: m.name,
-            displayName: m.display_name,
-            description: m.description,
-            inputTokenLimit: m.input_token_limit,
-            outputTokenLimit: m.output_token_limit,
-            supportedGenerationMethods: ['generateContent'],
-        }));
+            // Convert snake_case to camelCase and add sorting
+            const result: GeminiModel[] = models.map(m => ({
+                name: m.name,
+                displayName: m.display_name,
+                description: m.description,
+                inputTokenLimit: m.input_token_limit,
+                outputTokenLimit: m.output_token_limit,
+                supportedGenerationMethods: ['generateContent'],
+            }));
 
-        // Sort by name, prioritizing newer versions
-        result.sort((a, b) => {
-            const getVersion = (name: string) => {
-                if (name.includes('2.0')) return 3;
-                if (name.includes('1.5')) return 2;
-                return 1;
-            };
-            return getVersion(b.name) - getVersion(a.name);
-        });
+            // Sort by name, prioritizing newer versions
+            result.sort((a, b) => {
+                const getVersion = (name: string) => {
+                    if (name.includes('2.0')) return 3;
+                    if (name.includes('1.5')) return 2;
+                    return 1;
+                };
+                return getVersion(b.name) - getVersion(a.name);
+            });
 
-        return result;
-    } catch (error) {
-        console.error('Failed to fetch models:', error);
-        throw error;
-    }
+            return result;
+        } catch (error) {
+            console.error('Failed to fetch models:', error);
+            throw error;
+        }
+    });
 }
 
 /**
@@ -116,6 +170,11 @@ export async function* generateCodeFromImage(
     const chunks: StreamChunk[] = [];
     let resolveWait: (() => void) | null = null;
     let unlisten: UnlistenFn | null = null;
+    let accumulatedContent = '';
+
+    const startTime = Date.now();
+    const { addApiLog } = useLogStore.getState();
+    const fullUrl = `https://generativelanguage.googleapis.com/v1beta/${modelConfig.model}:streamGenerateContent`;
 
     // Set up event listener
     unlisten = await listen<StreamChunk>('llm-chunk', (event) => {
@@ -157,14 +216,34 @@ export async function* generateCodeFromImage(
             const chunk = chunks.shift()!;
 
             if (chunk.error) {
+                addApiLog({
+                    url: fullUrl,
+                    reason: 'Generate Code (Stream Error)',
+                    status: 'failed',
+                    duration: Date.now() - startTime,
+                    usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
+                });
                 throw new Error(chunk.error);
             }
 
             if (chunk.content) {
+                // Accumulate content for token estimation
+                accumulatedContent += chunk.content;
                 yield chunk.content;
             }
 
             if (chunk.done) {
+                addApiLog({
+                    url: fullUrl,
+                    reason: 'Generate Code (Stream Complete)',
+                    status: 'success',
+                    duration: Date.now() - startTime,
+                    usage: {
+                        promptTokens: 0,
+                        completionTokens: Math.ceil(accumulatedContent.length / 4), // Rough estimate
+                        totalTokens: Math.ceil(accumulatedContent.length / 4)
+                    }
+                });
                 break;
             }
         }

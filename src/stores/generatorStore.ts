@@ -126,7 +126,13 @@ export const useGeneratorStore = create<GeneratorStore>()(
             setImageSummary: (summary) => set({ imageSummary: summary }),
             setImageFullDescription: (description) => set({ imageFullDescription: description }),
 
-            reset: () => set(initialState),
+            reset: () => {
+                // Initialize new task ID when resetting
+                import('../stores/logStore').then(({ useLogStore }) => {
+                    useLogStore.getState().initTaskId();
+                });
+                set(initialState);
+            },
         }),
         {
             name: 'vcode-generator',

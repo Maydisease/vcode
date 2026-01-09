@@ -1,6 +1,7 @@
 import { useCallback, useState, useRef, useEffect } from 'react';
-import { Upload, X, Settings, Sparkles, Code2, Play, History } from 'lucide-react';
+import { Upload, X, Settings, Sparkles, Code2, Play, Activity } from 'lucide-react';
 import { useGeneratorStore } from '../../stores/generatorStore';
+import { useUIStore } from '../../stores/uiStore';
 import { useCodeGenerator } from '../../hooks/useCodeGenerator';
 import { toast } from '../Toast/Toast';
 import './TopBar.css';
@@ -18,6 +19,7 @@ export function TopBar({ onSettingsClick, onPreviewClick, onHistoryClick }: TopB
     const { currentImage, imagePreview, isGenerating, step } = useGeneratorStore();
     const { handleImageUpload, generateCode, generateEasyFormCode } = useCodeGenerator();
     const { reset } = useGeneratorStore();
+    const { setDataStatsOpen } = useUIStore();
 
     // Global paste event listener for clipboard images
     useEffect(() => {
@@ -187,10 +189,10 @@ export function TopBar({ onSettingsClick, onPreviewClick, onHistoryClick }: TopB
                 <span className="top-bar__divider" />
                 <button
                     className="top-bar__icon-btn"
-                    onClick={onHistoryClick}
-                    title="生成历史"
+                    onClick={() => setDataStatsOpen(true)}
+                    title="任务统计"
                 >
-                    <History size={18} />
+                    <Activity size={18} />
                 </button>
                 <button
                     className="top-bar__icon-btn"

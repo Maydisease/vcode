@@ -24,6 +24,7 @@ interface ApifoxCache {
 interface SelectionCache {
     createApiId: string;
     updateApiId: string;
+    deleteApiId?: string; // Optional
     queryApiId: string;
     columnsCode: string;
 }
@@ -120,6 +121,9 @@ export function ApiSelectorContent({ onConfirm, onSkip, hideActions }: ApiSelect
         if (cached.updateApiId && endpointIds.has(cached.updateApiId)) {
             setUpdateApiId(cached.updateApiId);
         }
+        if (cached.deleteApiId && endpointIds.has(cached.deleteApiId)) {
+            setDeleteApiId(cached.deleteApiId);
+        }
         if (cached.queryApiId && endpointIds.has(cached.queryApiId)) {
             setQueryApiId(cached.queryApiId);
         }
@@ -181,11 +185,12 @@ export function ApiSelectorContent({ onConfirm, onSkip, hideActions }: ApiSelect
             saveSelectionCache({
                 createApiId,
                 updateApiId,
+                deleteApiId,
                 queryApiId,
                 columnsCode,
             });
         }
-    }, [createApiId, updateApiId, queryApiId, columnsCode, endpoints.length]);
+    }, [createApiId, updateApiId, deleteApiId, queryApiId, columnsCode, endpoints.length]);
 
     const getEndpointById = useCallback((id: string) => endpoints.find(e => e.id === id) || null, [endpoints]);
 

@@ -7,17 +7,44 @@ interface TokenInfo {
     outputTokens?: number;
 }
 
+interface ApiLogEntry {
+    id: string;
+    taskId: string;
+    url: string;
+    reason: string;
+    status: 'success' | 'failed';
+    duration: number;
+    usage: {
+        promptTokens: number;
+        completionTokens: number;
+        totalTokens: number;
+    };
+    timestamp: number;
+}
+
 interface LogStore {
     logs: LogEntry[];
     taskStartTime: number | null;
-    taskEndTime: number | null; // Properly track end time
+    taskEndTime: number | null;
+
+    // Task Tracking
+    currentTaskId: string | null;
+    apiLogs: ApiLogEntry[];
+
     addLog: (message: string, level?: LogLevel, imageUrl?: string, promptContent?: string, promptId?: string) => void;
-    startTask: (message: string, promptContent?: string, promptId?: string) => string; // Returns log id
+    startTask: (message: string, promptContent?: string, promptId?: string) => string;
     completeTask: (logId: string, message: string, level?: LogLevel, tokens?: TokenInfo, promptContent?: string, promptId?: string) => void;
-    setTaskComplete: () => void; // Mark task as complete
+    setTaskComplete: () => void;
     clearLogs: () => void;
     getTaskDuration: () => number;
     getTotalTokens: () => { input: number; output: number };
+
+    // New API Tracking Actions
+    initTaskId: () => string;
+    addApiLog: (log: Omit<ApiLogEntry, 'id' | 'timestamp' | 'taskId'>) => void;
+    clearApiLogs: () => void;
+    clearTaskLogs: (taskId: string) => void;
+    clearAllLogs: () => void;
 }
 
 export const useLogStore = create<LogStore>()(
@@ -26,10 +53,11 @@ export const useLogStore = create<LogStore>()(
             logs: [],
             taskStartTime: null,
             taskEndTime: null,
+            currentTaskId: null,
+            apiLogs: [],
 
             addLog: (message, level = 'info', imageUrl, promptContent, promptId) =>
                 set((state) => {
-                    // If this is the first log, start tracking task time
                     const taskStartTime = state.taskStartTime ?? Date.now();
                     return {
                         taskStartTime,
@@ -41,7 +69,7 @@ export const useLogStore = create<LogStore>()(
                                 message,
                                 level,
                                 imageUrl,
-                                promptContent, // Keep for legacy
+                                promptContent,
                                 promptId,
                             },
                         ],
@@ -62,7 +90,7 @@ export const useLogStore = create<LogStore>()(
                                 message,
                                 level: 'info',
                                 isRunning: true,
-                                promptContent, // Keep for legacy
+                                promptContent,
                                 promptId,
                             },
                         ],
@@ -99,7 +127,6 @@ export const useLogStore = create<LogStore>()(
             getTaskDuration: () => {
                 const state = get();
                 if (!state.taskStartTime) return 0;
-                // Use taskEndTime if available, otherwise use current time
                 const endTime = state.taskEndTime || Date.now();
                 return endTime - state.taskStartTime;
             },
@@ -114,13 +141,43 @@ export const useLogStore = create<LogStore>()(
                     { input: 0, output: 0 }
                 );
             },
+
+            // --- New Actions Implementation ---
+
+            initTaskId: () => {
+                const taskId = Math.random().toString(36).substring(2, 10);
+                set({ currentTaskId: taskId });
+                return taskId;
+            },
+
+            addApiLog: (log) => set((state) => {
+                const taskId = state.currentTaskId || Math.random().toString(36).substring(2, 10);
+                return {
+                    currentTaskId: taskId,
+                    apiLogs: [
+                        ...state.apiLogs,
+                        {
+                            ...log,
+                            id: Math.random().toString(36).substring(2, 9),
+                            timestamp: Date.now(),
+                            taskId: taskId,
+                        }
+                    ]
+                };
+            }),
+
+            clearApiLogs: () => set({ apiLogs: [] }),
+
+            clearTaskLogs: (taskId: string) => set((state) => ({
+                apiLogs: state.apiLogs.filter(log => log.taskId !== taskId)
+            })),
+
+            clearAllLogs: () => set({ apiLogs: [] }),
         }),
         {
             name: 'vcode-logs',
             partialize: (state) => ({
                 logs: state.logs.map(log => {
-                    // We remove promptContent for persistence to save space
-                    // But we keep promptId which is small
                     const { promptContent, ...rest } = log;
                     return {
                         ...rest,
@@ -130,6 +187,9 @@ export const useLogStore = create<LogStore>()(
                 }),
                 taskStartTime: state.taskStartTime,
                 taskEndTime: state.taskEndTime,
+                // Persist new fields
+                currentTaskId: state.currentTaskId,
+                apiLogs: state.apiLogs,
             }),
         }
     )

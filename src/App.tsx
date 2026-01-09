@@ -15,6 +15,7 @@ import { useCodeGenerator } from './hooks/useCodeGenerator';
 import { useProjectStore, parseMultiFileOutput } from './stores/projectStore';
 import { useHistoryStore } from './stores/historyStore';
 import './App.css';
+import { TaskStatisticsDrawer } from './components/TaskStatistics/TaskStatisticsDrawer';
 import './styles/global.css';
 
 function App() {
@@ -94,6 +95,7 @@ function App() {
         statusBar={<StatusBar />}
       />
       <UploadWizard />
+      <TaskStatisticsDrawer />
       <ToastContainer />
     </>
   );

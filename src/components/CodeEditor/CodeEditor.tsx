@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import Editor, { BeforeMount } from '@monaco-editor/react';
 import type * as Monaco from 'monaco-editor';
-import { Code2, Copy, Check, Download, Package, Save, History } from 'lucide-react';
+import { Code2, Copy, Check, Download, Package, Save, History, ChevronDown } from 'lucide-react';
 import { useProjectStore } from '../../stores/projectStore';
 import { useFormConfigEditorStore } from '../../stores/formConfigEditorStore';
 import { FileTree } from '../FileTree/FileTree';
@@ -35,6 +35,27 @@ export function CodeEditor() {
     const decorationsRef = useRef<string[]>([]);
     const codeLensProviderRef = useRef<Monaco.IDisposable | null>(null);
     const commandDisposableRef = useRef<Monaco.IDisposable | null>(null);
+
+    // Dropdown menu state
+    const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
+    const downloadMenuRef = useRef<HTMLDivElement>(null);
+
+    // Close menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (downloadMenuRef.current && !downloadMenuRef.current.contains(event.target as Node)) {
+                setIsDownloadMenuOpen(false);
+            }
+        };
+
+        if (isDownloadMenuOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isDownloadMenuOpen]);
 
     const activeFile = getActiveFile();
     const hasFiles = files.length > 0;
@@ -159,29 +180,54 @@ export function CodeEditor() {
                                 {copied ? <Check size={14} /> : <Copy size={14} />}
                                 {copied ? '已复制' : '复制'}
                             </button>
-                            <button
-                                className="code-editor__action-btn"
-                                onClick={handleDownload}
-                                disabled={!activeFile}
-                            >
-                                <Download size={14} />
-                                下载
-                            </button>
-                            <button
-                                className="code-editor__action-btn"
-                                onClick={handleSaveToFile}
-                                disabled={!activeFile}
-                                title="保存到指定位置"
-                            >
-                                <Save size={14} />
-                                另存为
-                            </button>
-                            {files.length > 1 && (
-                                <button className="code-editor__action-btn" onClick={handleDownloadAll}>
-                                    <Package size={14} />
-                                    全部
+
+
+                            <div className="code-editor__split-btn-group" ref={downloadMenuRef}>
+                                <button
+                                    className="code-editor__action-btn code-editor__split-main"
+                                    onClick={handleDownload}
+                                    disabled={!activeFile}
+                                    title="下载当前文件"
+                                >
+                                    <Download size={14} />
+                                    下载
                                 </button>
-                            )}
+                                <button
+                                    className={`code-editor__action-btn code-editor__split-trigger ${isDownloadMenuOpen ? 'active' : ''}`}
+                                    onClick={() => setIsDownloadMenuOpen(!isDownloadMenuOpen)}
+                                    disabled={!activeFile}
+                                >
+                                    <ChevronDown size={12} />
+                                </button>
+
+                                {isDownloadMenuOpen && (
+                                    <div className="code-editor__dropdown-menu">
+                                        <button
+                                            className="code-editor__dropdown-item"
+                                            onClick={() => {
+                                                handleSaveToFile();
+                                                setIsDownloadMenuOpen(false);
+                                            }}
+                                            disabled={!activeFile}
+                                        >
+                                            <Save size={14} />
+                                            另存为...
+                                        </button>
+                                        {files.length > 1 && (
+                                            <button
+                                                className="code-editor__dropdown-item"
+                                                onClick={() => {
+                                                    handleDownloadAll();
+                                                    setIsDownloadMenuOpen(false);
+                                                }}
+                                            >
+                                                <Package size={14} />
+                                                下载全部
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
                 </div>
