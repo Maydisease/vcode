@@ -76,9 +76,11 @@ function buildApiContext(selectedApis: SelectedApis): string {
 export function buildRefinementPrompt(
   indexCode: string,
   modalCode: string,
-  serviceCode: string
+  serviceCode: string,
+  selectedApis: SelectedApis | null
 ): string {
   const state = useSettingsStore.getState();
+  const apiContext = selectedApis ? buildApiContext(selectedApis) : '';
 
   // Build best examples section if enabled and any exist
   let examplesSection = '';
@@ -97,6 +99,7 @@ export function buildRefinementPrompt(
   }
 
   return `${state.easyFormRefinePrompt}
+${apiContext}
 ${examplesSection}
 === 待整合的代码 ===
 

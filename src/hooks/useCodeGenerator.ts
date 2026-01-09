@@ -4,6 +4,7 @@ import { useGeneratorStore } from '../stores/generatorStore';
 import { useLogStore } from '../stores/logStore';
 import { useHistoryStore } from '../stores/historyStore';
 import { useProjectStore, parseMultiFileOutput } from '../stores/projectStore';
+import { invoke } from '@tauri-apps/api/core';
 import { useUIStore } from '../stores/uiStore';
 import { initializeGemini, generateCodeFromImage } from '../services/geminiService';
 import { initializeOpenAI, generateCodeFromImageOpenAI } from '../services/openaiService';
@@ -334,16 +335,64 @@ export function useCodeGenerator() {
 
             // Run all 3 file generations in parallel
             const [indexResult, modalResult, serviceResult] = await Promise.all([
-                generateSingleFile('index', selectedApis).then(result => {
-                    if (!isResuming) completeTask(indexLogId, 'index.tsx 生成完成', 'success');
+                generateSingleFile('index', selectedApis).then(async result => {
+                    if (!isResuming) {
+                        let promptId: string | undefined;
+                        try {
+                            promptId = await invoke('save_prompt', { content: result.promptContent });
+                        } catch (e) {
+                            console.error('Failed to save prompt:', e);
+                        }
+
+                        completeTask(
+                            indexLogId,
+                            'index.tsx 生成完成',
+                            'success',
+                            { inputTokens: result.inputTokens, outputTokens: result.outputTokens },
+                            undefined,
+                            promptId
+                        );
+                    }
                     return result;
                 }),
-                generateSingleFile('modal', selectedApis).then(result => {
-                    if (!isResuming) completeTask(modalLogId, 'modal.tsx 生成完成', 'success');
+                generateSingleFile('modal', selectedApis).then(async result => {
+                    if (!isResuming) {
+                        let promptId: string | undefined;
+                        try {
+                            promptId = await invoke('save_prompt', { content: result.promptContent });
+                        } catch (e) {
+                            console.error('Failed to save prompt:', e);
+                        }
+
+                        completeTask(
+                            modalLogId,
+                            'modal.tsx 生成完成',
+                            'success',
+                            { inputTokens: result.inputTokens, outputTokens: result.outputTokens },
+                            undefined,
+                            promptId
+                        );
+                    }
                     return result;
                 }),
-                generateSingleFile('service', selectedApis).then(result => {
-                    if (!isResuming) completeTask(serviceLogId, 'scope.service.ts 生成完成', 'success');
+                generateSingleFile('service', selectedApis).then(async result => {
+                    if (!isResuming) {
+                        let promptId: string | undefined;
+                        try {
+                            promptId = await invoke('save_prompt', { content: result.promptContent });
+                        } catch (e) {
+                            console.error('Failed to save prompt:', e);
+                        }
+
+                        completeTask(
+                            serviceLogId,
+                            'scope.service.ts 生成完成',
+                            'success',
+                            { inputTokens: result.inputTokens, outputTokens: result.outputTokens },
+                            undefined,
+                            promptId
+                        );
+                    }
                     return result;
                 }),
             ]);
@@ -356,7 +405,7 @@ export function useCodeGenerator() {
 
             const refineLogId = !isResuming ? startTask('正在整合优化代码...') : 'resume-refine';
 
-            const refinementPrompt = buildRefinementPrompt(indexResult.code, modalResult.code, serviceResult.code);
+            const refinementPrompt = buildRefinementPrompt(indexResult.code, modalResult.code, serviceResult.code, selectedApis);
 
             const refineInputTokenResult = await countTokens(refinementPrompt);
             const refineInputTokens = refineInputTokenResult.count + 500;
@@ -449,7 +498,23 @@ export function useCodeGenerator() {
             setFiles(filesWithVersions);
             const refineOutputTokenResult = await countTokens(cleanedCode);
 
-            if (!isResuming) completeTask(refineLogId, '代码整合优化完成', 'success');
+            if (!isResuming) {
+                let promptId: string | undefined;
+                try {
+                    promptId = await invoke('save_prompt', { content: refinementPrompt });
+                } catch (e) {
+                    console.error('Failed to save prompt:', e);
+                }
+
+                completeTask(
+                    refineLogId,
+                    '代码整合优化完成',
+                    'success',
+                    { inputTokens: refineInputTokens, outputTokens: refineOutputTokenResult.count },
+                    undefined,
+                    promptId
+                );
+            }
             setStep('done');
             setProgress(100);
             addLog(`代码生成完成! 共 ${filesWithVersions.length} 个文件`, 'success');
@@ -474,6 +539,13 @@ export function useCodeGenerator() {
                 addLog('生成成功，但保存历史记录失败 (本地存储已满)', 'warning');
             }
         } catch (error) {
+            // If the main task flow has already completed successfully (step is done),
+            // ignore any subsequent errors (e.g. from phantom parallel tasks or quota issues in background)
+            if (useGeneratorStore.getState().step === 'done') {
+                console.warn(`[Exec ${execId}] Ignored error after task completion:`, error);
+                return;
+            }
+
             console.error(`[Exec ${execId}] Error caught:`, error);
             const message = error instanceof Error ? error.message : '未知错误';
             addLog(`生成失败: ${message}`, 'error');

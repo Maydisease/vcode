@@ -4,11 +4,14 @@ use serde_json::Value;
 mod history;
 mod http_client;
 mod llm;
+mod prompts;
 mod server;
 mod tasks;
+
 mod tokenizer;
 
 use history::HistoryStore;
+use prompts::PromptStore;
 use tasks::TaskManager;
 use tauri::Manager;
 
@@ -56,6 +59,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .manage(TaskManager::new())
         .manage(HistoryStore::new())
+        .manage(PromptStore::new())
         .setup(|app| {
             let handle = app.handle().clone();
             // Start the static file server
@@ -69,6 +73,11 @@ pub fn run() {
             let history_store = app.state::<HistoryStore>();
             if let Err(e) = history_store.init(&app.handle()) {
                 eprintln!("Failed to initialize history store: {}", e);
+            }
+            // Initialize prompt store
+            let prompt_store = app.state::<PromptStore>();
+            if let Err(e) = prompt_store.init(&app.handle()) {
+                eprintln!("Failed to initialize prompt store: {}", e);
             }
             Ok(())
         })
@@ -97,7 +106,10 @@ pub fn run() {
             history::save_history_record,
             history::get_history,
             history::delete_history_record,
-            history::clear_history
+            history::clear_history,
+            // Prompt commands
+            prompts::save_prompt,
+            prompts::get_prompt
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

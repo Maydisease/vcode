@@ -11,9 +11,9 @@ interface LogStore {
     logs: LogEntry[];
     taskStartTime: number | null;
     taskEndTime: number | null; // Properly track end time
-    addLog: (message: string, level?: LogLevel, imageUrl?: string, promptContent?: string) => void;
-    startTask: (message: string, promptContent?: string) => string; // Returns log id
-    completeTask: (logId: string, message: string, level?: LogLevel, tokens?: TokenInfo, promptContent?: string) => void;
+    addLog: (message: string, level?: LogLevel, imageUrl?: string, promptContent?: string, promptId?: string) => void;
+    startTask: (message: string, promptContent?: string, promptId?: string) => string; // Returns log id
+    completeTask: (logId: string, message: string, level?: LogLevel, tokens?: TokenInfo, promptContent?: string, promptId?: string) => void;
     setTaskComplete: () => void; // Mark task as complete
     clearLogs: () => void;
     getTaskDuration: () => number;
@@ -27,7 +27,7 @@ export const useLogStore = create<LogStore>()(
             taskStartTime: null,
             taskEndTime: null,
 
-            addLog: (message, level = 'info', imageUrl, promptContent) =>
+            addLog: (message, level = 'info', imageUrl, promptContent, promptId) =>
                 set((state) => {
                     // If this is the first log, start tracking task time
                     const taskStartTime = state.taskStartTime ?? Date.now();
@@ -41,13 +41,14 @@ export const useLogStore = create<LogStore>()(
                                 message,
                                 level,
                                 imageUrl,
-                                promptContent,
+                                promptContent, // Keep for legacy
+                                promptId,
                             },
                         ],
                     };
                 }),
 
-            startTask: (message, promptContent) => {
+            startTask: (message, promptContent, promptId) => {
                 const id = `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
                 set((state) => {
                     const taskStartTime = state.taskStartTime ?? Date.now();
@@ -61,7 +62,8 @@ export const useLogStore = create<LogStore>()(
                                 message,
                                 level: 'info',
                                 isRunning: true,
-                                promptContent,
+                                promptContent, // Keep for legacy
+                                promptId,
                             },
                         ],
                     };
@@ -69,7 +71,7 @@ export const useLogStore = create<LogStore>()(
                 return id;
             },
 
-            completeTask: (logId, message, level = 'success', tokens, promptContent) =>
+            completeTask: (logId, message, level = 'success', tokens, promptContent, promptId) =>
                 set((state) => ({
                     logs: state.logs.map((log) =>
                         log.id === logId
@@ -82,6 +84,7 @@ export const useLogStore = create<LogStore>()(
                                 inputTokens: tokens?.inputTokens,
                                 outputTokens: tokens?.outputTokens,
                                 promptContent: promptContent || log.promptContent,
+                                promptId: promptId || log.promptId,
                             }
                             : log
                     ),
@@ -115,11 +118,16 @@ export const useLogStore = create<LogStore>()(
         {
             name: 'vcode-logs',
             partialize: (state) => ({
-                logs: state.logs.map(log => ({
-                    ...log,
-                    // Reset isRunning to false - the auto-resume will restart generation
-                    isRunning: false,
-                })),
+                logs: state.logs.map(log => {
+                    // We remove promptContent for persistence to save space
+                    // But we keep promptId which is small
+                    const { promptContent, ...rest } = log;
+                    return {
+                        ...rest,
+                        isRunning: false,
+                        promptContent: undefined
+                    };
+                }),
                 taskStartTime: state.taskStartTime,
                 taskEndTime: state.taskEndTime,
             }),

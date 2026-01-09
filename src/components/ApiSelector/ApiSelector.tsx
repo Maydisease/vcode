@@ -407,54 +407,58 @@ export function ApiSelector({ onConfirm, onSkip }: ApiSelectorProps) {
                     </div>
                 )}
 
-                <div className="api-selector__field">
-                    <label className="api-selector__label">添加接口</label>
-                    <SearchableSelect<ApifoxEndpoint>
-                        value={createApiId}
-                        onChange={setCreateApiId}
-                        options={endpoints.filter(e => e.method === 'POST')}
-                        placeholder="输入关键字搜索..."
-                        getValue={getApiValue}
-                        getLabel={getApiLabel}
-                        renderOption={renderApiOption}
-                    />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                    <div className="api-selector__field" style={{ marginBottom: 0 }}>
+                        <label className="api-selector__label">添加接口</label>
+                        <SearchableSelect<ApifoxEndpoint>
+                            value={createApiId}
+                            onChange={setCreateApiId}
+                            options={endpoints.filter(e => e.method === 'POST')}
+                            placeholder="输入关键字搜索..."
+                            getValue={getApiValue}
+                            getLabel={getApiLabel}
+                            renderOption={renderApiOption}
+                        />
+                    </div>
+
+                    <div className="api-selector__field" style={{ marginBottom: 0 }}>
+                        <label className="api-selector__label">修改接口</label>
+                        <SearchableSelect<ApifoxEndpoint>
+                            value={updateApiId}
+                            onChange={setUpdateApiId}
+                            options={endpoints.filter(e => ['POST', 'PUT', 'PATCH'].includes(e.method))}
+                            placeholder="输入关键字搜索..."
+                            getValue={getApiValue}
+                            getLabel={getApiLabel}
+                            renderOption={renderApiOption}
+                        />
+                    </div>
                 </div>
 
-                <div className="api-selector__field">
-                    <label className="api-selector__label">修改接口</label>
-                    <SearchableSelect<ApifoxEndpoint>
-                        value={updateApiId}
-                        onChange={setUpdateApiId}
-                        options={endpoints.filter(e => ['POST', 'PUT', 'PATCH'].includes(e.method))}
-                        placeholder="输入关键字搜索..."
-                        getValue={getApiValue}
-                        getLabel={getApiLabel}
-                        renderOption={renderApiOption}
-                    />
-                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div className="api-selector__field" style={{ marginBottom: 0 }}>
+                        <label className="api-selector__label">查询接口 (可选)</label>
+                        <SearchableSelect<ApifoxEndpoint>
+                            value={queryApiId}
+                            onChange={setQueryApiId}
+                            options={endpoints}
+                            placeholder="输入关键字搜索..."
+                            getValue={getApiValue}
+                            getLabel={getApiLabel}
+                            renderOption={renderApiOption}
+                        />
+                    </div>
 
-                <div className="api-selector__field">
-                    <label className="api-selector__label">查询接口 (可选)</label>
-                    <SearchableSelect<ApifoxEndpoint>
-                        value={queryApiId}
-                        onChange={setQueryApiId}
-                        options={endpoints}
-                        placeholder="输入关键字搜索..."
-                        getValue={getApiValue}
-                        getLabel={getApiLabel}
-                        renderOption={renderApiOption}
-                    />
-                </div>
-
-                <div className="api-selector__field">
-                    <label className="api-selector__label">Table Columns ID (columnsCode)</label>
-                    <input
-                        type="text"
-                        className="api-selector__input"
-                        value={columnsCode}
-                        onChange={(e) => setColumnsCode(e.target.value)}
-                        placeholder="请输入 columnsCode (例如: 8ef6f6a10b)"
-                    />
+                    <div className="api-selector__field" style={{ marginBottom: 0 }}>
+                        <label className="api-selector__label">Table Columns ID (columnsCode)</label>
+                        <input
+                            type="text"
+                            className="api-selector__input"
+                            value={columnsCode}
+                            onChange={(e) => setColumnsCode(e.target.value)}
+                            placeholder="Columns Code..."
+                        />
+                    </div>
                 </div>
             </div>
 

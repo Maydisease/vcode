@@ -31,7 +31,8 @@ export interface LogEntry {
   isRunning?: boolean; // Whether the task is still running
   inputTokens?: number;  // Input tokens for this task
   outputTokens?: number; // Output tokens for this task
-  promptContent?: string; // Full prompt content sent to LLM
+  promptContent?: string; // Full prompt content sent to LLM (Deprecated, use ID instead)
+  promptId?: string; // ID of the prompt stored in backend
 }
 
 export type LogLevel = 'info' | 'success' | 'warning' | 'error';

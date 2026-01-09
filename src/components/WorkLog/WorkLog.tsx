@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Editor from '@monaco-editor/react';
+import { invoke } from '@tauri-apps/api/core';
 import { FileText, Info, CheckCircle, AlertTriangle, XCircle, X, Timer, Zap, FileCode, Terminal } from 'lucide-react';
 import { useLogStore } from '../../stores/logStore';
 import { useGeneratorStore } from '../../stores/generatorStore';
@@ -131,10 +132,10 @@ function RunningTimer({ startTime }: { startTime: number }) {
 }
 
 // Component for displaying log entry with duration
-function LogEntryItem({ log, onImageClick, onPromptClick }: { log: LogEntry; onImageClick: (url: string) => void; onPromptClick: (content: string, title: string) => void }) {
+function LogEntryItem({ log, onImageClick, onPromptClick }: { log: LogEntry; onImageClick: (url: string) => void; onPromptClick: (log: LogEntry) => void }) {
     const hasTokens = (log.inputTokens !== undefined && log.inputTokens > 0) ||
         (log.outputTokens !== undefined && log.outputTokens > 0);
-    const hasMeta = hasTokens || log.isRunning || (log.duration !== undefined && !log.isRunning) || log.promptContent;
+    const hasMeta = hasTokens || log.isRunning || (log.duration !== undefined && !log.isRunning) || log.promptContent || log.promptId;
 
     return (
         <div className={`log-entry log-entry--${log.level}`}>
@@ -169,10 +170,10 @@ function LogEntryItem({ log, onImageClick, onPromptClick }: { log: LogEntry; onI
                             {formatDuration(log.duration)}
                         </span>
                     )}
-                    {log.promptContent && (
+                    {(log.promptContent || log.promptId) && (
                         <button
                             className="log-entry__prompt-btn"
-                            onClick={() => onPromptClick(log.promptContent!, log.message)}
+                            onClick={() => onPromptClick(log)}
                             title="查看完整提示词"
                         >
                             <FileCode size={11} />
@@ -270,8 +271,20 @@ export function WorkLog() {
         setPreviewImage(null);
     }, []);
 
-    const handlePromptClick = useCallback((content: string, title: string) => {
-        setViewingPrompt({ content, title });
+    const handlePromptClick = useCallback(async (log: LogEntry) => {
+        let content = log.promptContent;
+        if (!content && log.promptId) {
+            try {
+                content = await invoke<string>('get_prompt', { id: log.promptId });
+            } catch (error) {
+                console.error('Failed to fetch prompt:', error);
+                content = `获取提示词失败: ${error}`;
+            }
+        }
+
+        if (content) {
+            setViewingPrompt({ content, title: log.message });
+        }
     }, []);
 
     const handleClosePrompt = useCallback(() => {
