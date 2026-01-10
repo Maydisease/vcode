@@ -12,10 +12,9 @@ import './TopBar.css';
 interface TopBarProps {
     onSettingsClick: () => void;
     onPreviewClick: () => void;
-    onHistoryClick: () => void;
 }
 
-export function TopBar({ onSettingsClick, onPreviewClick, onHistoryClick }: TopBarProps) {
+export function TopBar({ onSettingsClick, onPreviewClick }: TopBarProps) {
     const [isDragActive, setIsDragActive] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 

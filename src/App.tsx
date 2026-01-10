@@ -75,13 +75,7 @@ function App() {
           <TopBar
             onSettingsClick={() => setShowSettings(true)}
             onPreviewClick={() => setViewMode('preview')}
-            onHistoryClick={() => {
-              // Maybe implement auto-switch to history tab?
-              // For now simpler to just remove the button or use it to focus history tab
-              // But SidePanel manages its own state. 
-              // We'll leave the button for now or remove it if user prefers.
-              // Given the request "merge", typically we rely on tabs.
-            }}
+
           />
         }
         leftPanel={viewMode === 'editor' ? <SidePanel onRestoreCode={handleRestoreCode} /> : null}
