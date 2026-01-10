@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
-import { FolderOpen, FileCode, FileJson, FileType, X, Plus, GitCompare, History } from 'lucide-react';
+import { FolderOpen, FileCode, FileJson, FileType, X, Plus, GitCompare, History, Copy } from 'lucide-react';
+import { toast } from '../Toast/Toast';
 import { useProjectStore } from '../../stores/projectStore';
 import type { FileNode } from '../../types';
 import './FileTree.css';
@@ -61,6 +62,12 @@ function FileTreeItem({ file, isActive, onSelect, onDelete, onCompare }: FileTre
         setShowContextMenu(false);
     }, []);
 
+    const handleCopyName = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(file.name);
+        toast.success(`文件名已复制`);
+    }, [file.name]);
+
     const hasVersions = file.versions && file.versions.length >= 2;
 
     if (file.type === 'folder') {
@@ -99,6 +106,9 @@ function FileTreeItem({ file, isActive, onSelect, onDelete, onCompare }: FileTre
                         <GitCompare size={12} className="file-tree-item__version-badge" />
                     </span>
                 )}
+                <button className="file-tree-item__action" onClick={handleCopyName} title="复制文件名">
+                    <Copy size={12} />
+                </button>
                 <button className="file-tree-item__delete" onClick={handleDelete} title="删除">
                     <X size={12} />
                 </button>

@@ -1,5 +1,8 @@
 import { useCallback, useState, useRef, useEffect } from 'react';
-import { Upload, X, Settings, Sparkles, Code2, Play, Activity } from 'lucide-react';
+import { Upload, X, Settings, Sparkles, Code2, Play, Activity, RefreshCcw } from 'lucide-react';
+import { check } from '@tauri-apps/plugin-updater';
+import { relaunch } from '@tauri-apps/plugin-process';
+import { ask } from '@tauri-apps/plugin-dialog';
 import { useGeneratorStore } from '../../stores/generatorStore';
 import { useUIStore } from '../../stores/uiStore';
 import { useCodeGenerator } from '../../hooks/useCodeGenerator';
@@ -104,6 +107,27 @@ export function TopBar({ onSettingsClick, onPreviewClick, onHistoryClick }: TopB
         }
     }, [step, generateCode, generateEasyFormCode]);
 
+    const handleCheckUpdate = useCallback(async () => {
+        try {
+            const update = await check();
+            if (update?.available) {
+                const yes = await ask(`发现新版本 ${update.version}，是否立即更新？`, {
+                    title: '发现新版本',
+                    kind: 'info'
+                });
+                if (yes) {
+                    await update.downloadAndInstall();
+                    await relaunch();
+                }
+            } else {
+                toast.success('当前已是最新版本');
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error('检查更新失败');
+        }
+    }, []);
+
     const getGenerateButtonText = () => {
         switch (step) {
             case 'generating':
@@ -193,6 +217,13 @@ export function TopBar({ onSettingsClick, onPreviewClick, onHistoryClick }: TopB
                     title="任务统计"
                 >
                     <Activity size={18} />
+                </button>
+                <button
+                    className="top-bar__icon-btn"
+                    onClick={handleCheckUpdate}
+                    title="检查更新"
+                >
+                    <RefreshCcw size={18} />
                 </button>
                 <button
                     className="top-bar__icon-btn"

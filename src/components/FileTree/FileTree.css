@@ -155,8 +155,28 @@
     transition: all var(--transition-fast);
 }
 
+.file-tree-item__action {
+    opacity: 0.4;
+    padding: 2px;
+    color: var(--color-text-muted);
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+    display: flex;
+}
+
+.file-tree-item:hover .file-tree-item__action {
+    opacity: 1;
+    color: var(--color-text-secondary);
+}
+
 .file-tree-item:hover .file-tree-item__delete {
     opacity: 1;
+}
+
+.file-tree-item__action:hover {
+    color: var(--color-text-primary) !important;
+    background-color: var(--color-bg);
+    opacity: 1 !important;
 }
 
 .file-tree-item__delete:hover {
