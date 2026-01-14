@@ -1,5 +1,4 @@
 name: Release
-
 on:
   push:
     tags:
@@ -13,14 +12,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest
+          - platform: macos-latest
             args: "--target aarch64-apple-darwin"
             rust_targets: "aarch64-apple-darwin"
-          - os: windows-latest
+          - platform: windows-latest
             args: ""
             rust_targets: ""
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.platform }}
 
     steps:
       - name: Checkout repository
@@ -34,10 +33,10 @@ jobs:
           node-version: 20
           cache: "npm"
 
-      - name: Rust setup (stable)
+      - name: Rust setup
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Add extra Rust targets (macOS only)
+      - name: Add Rust target (macOS only)
         if: matrix.rust_targets != ''
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -46,7 +45,7 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      # 关键修复：Windows 默认是 pwsh，你的脚本是 bash 语法，所以这里强制用 bash
+      # ✅ 修复 Windows：强制 bash 执行这段脚本
       - name: Debug Environment
         shell: bash
         env:
@@ -60,12 +59,13 @@ jobs:
           fi
 
       - name: Build the app
-        uses: tauri-apps/tauri-action@v1
+        uses: tauri-apps/tauri-action@v0.6.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
         with:
+          tauriScript: "npm run tauri"
           tagName: ${{ github.ref_name }}
           releaseName: "App v__VERSION__"
           releaseBody: "See the assets to download this version and install."
