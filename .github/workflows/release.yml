@@ -1,4 +1,5 @@
 name: Release
+
 on:
   push:
     tags:
@@ -11,12 +12,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [macos-latest, ubuntu-22.04, windows-latest]
-    runs-on: ${{ matrix.platform }}
+        include:
+          - os: macos-latest
+            args: "--target aarch64-apple-darwin"
+            rust_targets: "aarch64-apple-darwin"
+          - os: windows-latest
+            args: ""
+            rust_targets: ""
+
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Node.js setup
         uses: actions/setup-node@v4
@@ -24,21 +34,21 @@ jobs:
           node-version: 20
           cache: "npm"
 
-      - name: Rust setup
+      - name: Rust setup (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Add extra Rust targets (macOS only)
+        if: matrix.rust_targets != ''
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
-
-      - name: Install dependencies (Ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+          targets: ${{ matrix.rust_targets }}
 
       - name: Install frontend dependencies
-        run: npm install
+        run: npm ci
 
+      # 关键修复：Windows 默认是 pwsh，你的脚本是 bash 语法，所以这里强制用 bash
       - name: Debug Environment
+        shell: bash
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         run: |
@@ -50,7 +60,7 @@ jobs:
           fi
 
       - name: Build the app
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -61,3 +71,4 @@ jobs:
           releaseBody: "See the assets to download this version and install."
           releaseDraft: true
           prerelease: false
+          args: ${{ matrix.args }}
