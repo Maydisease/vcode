@@ -16,6 +16,7 @@ import { useProjectStore, parseMultiFileOutput } from './stores/projectStore';
 import { useHistoryStore } from './stores/historyStore';
 import './App.css';
 import { TaskStatisticsDrawer } from './components/TaskStatistics/TaskStatisticsDrawer';
+import { UpdateModal } from './components/UpdateModal/UpdateModal';
 import './styles/global.css';
 
 function App() {
@@ -90,6 +91,7 @@ function App() {
       />
       <UploadWizard />
       <TaskStatisticsDrawer />
+      <UpdateModal />
       <ToastContainer />
     </>
   );

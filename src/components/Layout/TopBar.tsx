@@ -1,8 +1,7 @@
 import { useCallback, useState, useRef, useEffect } from 'react';
 import { Upload, X, Settings, Sparkles, Code2, Play, Activity, RefreshCcw } from 'lucide-react';
 import { check } from '@tauri-apps/plugin-updater';
-import { relaunch } from '@tauri-apps/plugin-process';
-import { ask } from '@tauri-apps/plugin-dialog';
+import { getVersion } from '@tauri-apps/api/app';
 import { useGeneratorStore } from '../../stores/generatorStore';
 import { useUIStore } from '../../stores/uiStore';
 import { useCodeGenerator } from '../../hooks/useCodeGenerator';
@@ -108,22 +107,29 @@ export function TopBar({ onSettingsClick, onPreviewClick }: TopBarProps) {
 
     const handleCheckUpdate = useCallback(async () => {
         try {
-            const update = await check();
-            if (update?.available) {
-                const yes = await ask(`发现新版本 ${update.version}，是否立即更新？`, {
-                    title: '发现新版本',
-                    kind: 'info'
-                });
-                if (yes) {
-                    await update.downloadAndInstall();
-                    await relaunch();
+            // 1. Get current version and open modal immediately
+            const currentVersion = await getVersion();
+            const { openUpdateModal, setUpdateStatus } = useUIStore.getState();
+            openUpdateModal(currentVersion);
+
+            // 2. Perform check
+            try {
+                const update = await check();
+                if (update?.available) {
+                    setUpdateStatus('available', {
+                        new: update.version,
+                        body: update.body || ''
+                    }, update);
+                } else {
+                    setUpdateStatus('uptodate');
                 }
-            } else {
-                toast.success('当前已是最新版本');
+            } catch (err) {
+                console.error(err);
+                setUpdateStatus('error');
             }
         } catch (error) {
             console.error(error);
-            toast.error('检查更新失败');
+            toast.error('获取版本信息失败');
         }
     }, []);
 
