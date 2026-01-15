@@ -13,12 +13,12 @@ interface UIStore {
     // Update Modal
     updateModal: {
         isOpen: boolean;
-        status: 'checking' | 'available' | 'uptodate' | 'error';
+        status: 'checking' | 'available' | 'uptodate' | 'error' | 'downloaded';
         versionInfo: { current: string; new?: string; body?: string } | null;
         updateHandle: Update | null;
     };
     openUpdateModal: (currentVersion: string) => void;
-    setUpdateStatus: (status: 'available' | 'uptodate' | 'error', info?: { new: string; body?: string }, handle?: Update) => void;
+    setUpdateStatus: (status: 'available' | 'uptodate' | 'error' | 'downloaded', info?: { new: string; body?: string }, handle?: Update) => void;
     closeUpdateModal: () => void;
 }
 

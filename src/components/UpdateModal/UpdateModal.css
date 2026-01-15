@@ -188,6 +188,37 @@
     color: rgba(0, 0, 0, 0.3);
 }
 
+/* Confirm Actions Container */
+.update-modal__confirm-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Primary Button - Filled */
+.update-modal__btn--primary {
+    background: #6366F1;
+    color: white;
+    border-color: #6366F1;
+}
+
+.update-modal__btn--primary:hover {
+    background: #4F46E5;
+    border-color: #4F46E5;
+}
+
+/* Ghost Button - Text only */
+.update-modal__btn--ghost {
+    background: transparent;
+    border-color: transparent;
+    color: rgba(0, 0, 0, 0.5);
+}
+
+.update-modal__btn--ghost:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: rgba(0, 0, 0, 0.7);
+}
+
 /* Progress */
 .update-modal__progress {
     display: flex;
