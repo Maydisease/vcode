@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useUIStore } from '../../stores/uiStore';
-import { X, Sparkles, ArrowRight, Download, RefreshCcw, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { X, Download, RefreshCcw, Loader2, Code2 } from 'lucide-react';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { toast } from '../Toast/Toast';
 import './UpdateModal.css';
@@ -13,131 +13,110 @@ export function UpdateModal() {
 
     if (!isOpen || !versionInfo) return null;
 
+    const isLatest = status === 'uptodate';
+    const hasUpdate = status === 'available';
+    const isChecking = status === 'checking';
+    const hasError = status === 'error';
+
     const handleUpdate = async () => {
-        if (!updateHandle) return;
+        if (!updateHandle || !hasUpdate) return;
         setIsUpdating(true);
+        setProgress(0);
         try {
+            let totalReceived = 0;
             await updateHandle.downloadAndInstall((event) => {
                 if (event.event === 'Progress') {
                     const data = event.data as any;
-                    if (data.contentLength) {
-                        setProgress(Math.round((data.chunkLength / data.contentLength) * 100));
+                    if (data.contentLength && data.chunkLength) {
+                        totalReceived += data.chunkLength;
+                        setProgress(Math.min(100, Math.round((totalReceived / data.contentLength) * 100)));
                     }
                 }
             });
-
+            toast.success('更新完成，正在重启...');
             setTimeout(async () => {
                 await relaunch();
-            }, 1000);
-
+            }, 800);
         } catch (error) {
             console.error('Update failed:', error);
             setIsUpdating(false);
+            setProgress(0);
             toast.error('更新失败，请重试');
         }
     };
 
-    const renderContent = () => {
-        if (status === 'checking') {
-            return (
-                <div className="update-modal__status-state">
-                    <Loader2 size={32} className="spin text-primary" />
-                    <p>正在检查更新...</p>
-                </div>
-            );
-        }
-
-        if (status === 'uptodate') {
-            return (
-                <div className="update-modal__status-state">
-                    <CheckCircle size={48} className="text-success" style={{ color: '#10B981' }} />
-                    <h4>当前已是最新版本</h4>
-                    <p className="text-secondary">v{versionInfo.current}</p>
-                </div>
-            );
-        }
-
-        if (status === 'error') {
-            return (
-                <div className="update-modal__status-state">
-                    <AlertCircle size={48} className="text-error" style={{ color: '#EF4444' }} />
-                    <h4>检查更新失败</h4>
-                    <p className="text-secondary">请稍后重试</p>
-                </div>
-            );
-        }
-
-        // status === 'available'
-        return (
-            <>
-                <div className="update-modal__comparison">
-                    <div className="version-box current">
-                        <span className="label">当前版本</span>
-                        <span className="value">v{versionInfo.current}</span>
-                    </div>
-                    <ArrowRight size={20} className="arrow" />
-                    <div className="version-box new">
-                        <span className="label">最新版本</span>
-                        <span className="value">v{versionInfo.new}</span>
-                    </div>
-                </div>
-
-                {versionInfo.body && (
-                    <div className="update-modal__notes">
-                        <h4>更新内容:</h4>
-                        <div className="notes-scroll">
-                            <pre>{versionInfo.body}</pre>
-                        </div>
-                    </div>
-                )}
-            </>
-        );
+    const getLatestVersion = () => {
+        if (isChecking) return '检查中...';
+        if (hasError) return '检查失败';
+        return versionInfo.new ? `v${versionInfo.new}` : `v${versionInfo.current}`;
     };
 
     return (
-        <div className="update-modal-overlay">
-            <div className="update-modal">
-                <div className="update-modal__header">
-                    <div className="update-modal__icon">
-                        <Sparkles size={24} className="text-secondary" />
-                    </div>
-                    <div className="update-modal__title-area">
-                        <h3>版本更新</h3>
-                    </div>
-                    {!isUpdating && (
-                        <button className="update-modal__close" onClick={closeUpdateModal}>
-                            <X size={20} />
-                        </button>
-                    )}
-                </div>
+        <div className="update-modal-overlay" onClick={closeUpdateModal}>
+            <div className="update-modal" onClick={(e) => e.stopPropagation()}>
+                {/* Close Button */}
+                {!isUpdating && (
+                    <button className="update-modal__close" onClick={closeUpdateModal} aria-label="关闭">
+                        <X size={16} />
+                    </button>
+                )}
 
+                {/* Main Content - Horizontal Layout */}
                 <div className="update-modal__content">
-                    {renderContent()}
-                </div>
+                    {/* Left: App Icon */}
+                    <div className="update-modal__icon">
+                        <Code2 size={28} strokeWidth={2} />
+                    </div>
 
-                <div className="update-modal__footer">
-                    {isUpdating ? (
-                        <div className="update-progress">
-                            <RefreshCcw size={18} className="spin" />
-                            <span>正在更新... {progress > 0 && `${progress}%`}</span>
+                    {/* Right: Version Info & Action */}
+                    <div className="update-modal__info">
+                        <h2 className="update-modal__title">软件更新</h2>
+
+                        <div className="update-modal__versions">
+                            <p className="update-modal__version-row">
+                                <span className="update-modal__label">当前版本</span>
+                                <span className="update-modal__value">v{versionInfo.current}</span>
+                            </p>
+                            <p className="update-modal__version-row">
+                                <span className="update-modal__label">最新版本</span>
+                                <span className={`update-modal__value ${hasUpdate ? 'update-modal__value--new' : ''}`}>
+                                    {isChecking && <Loader2 size={12} className="spin" />}
+                                    {getLatestVersion()}
+                                </span>
+                            </p>
                         </div>
-                    ) : (
-                        status === 'available' ? (
-                            <>
-                                <button className="btn-ghost" onClick={closeUpdateModal}>
-                                    忽略
+
+                        {/* Action Button */}
+                        <div className="update-modal__action-area">
+                            {isUpdating ? (
+                                <div className="update-modal__progress">
+                                    <div className="update-modal__progress-bar">
+                                        <div
+                                            className="update-modal__progress-fill"
+                                            style={{ width: `${progress}%` }}
+                                        />
+                                    </div>
+                                    <span className="update-modal__progress-text">
+                                        <RefreshCcw size={12} className="spin" />
+                                        下载中 {progress}%
+                                    </span>
+                                </div>
+                            ) : isLatest ? (
+                                <span className="update-modal__status-text update-modal__status-text--success">
+                                    ✓ 已是最新版本
+                                </span>
+                            ) : hasError ? (
+                                <button className="update-modal__btn" onClick={closeUpdateModal}>
+                                    <span>关闭</span>
                                 </button>
-                                <button className="btn-primary" onClick={handleUpdate}>
-                                    <Download size={18} />
-                                    立即更新
+                            ) : hasUpdate ? (
+                                <button className="update-modal__btn" onClick={handleUpdate}>
+                                    <Download size={12} />
+                                    <span>立即更新</span>
                                 </button>
-                            </>
-                        ) : (
-                            <button className="btn-primary" onClick={closeUpdateModal}>
-                                确定
-                            </button>
-                        )
-                    )}
+                            ) : null}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
