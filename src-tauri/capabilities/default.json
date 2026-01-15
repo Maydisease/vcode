@@ -13,6 +13,7 @@
     "fs:allow-write-text-file",
     "fs:allow-read-text-file",
     "core:window:allow-set-title",
-    "updater:default"
+    "updater:default",
+    "process:allow-restart"
   ]
 }
